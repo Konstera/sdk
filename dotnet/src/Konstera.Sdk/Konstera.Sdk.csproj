@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Konstera.Sdk</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Konstera Agent SDK for .NET. Mirror of konstera-sdk (Python). Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing.</Description>
+    <PackageLicenseExpression>BUSL-1.1</PackageLicenseExpression>
+    <Authors>Konstera</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MCP client (same lib as the kernel side, per ADR-001).
+         Session-per-process pattern: create once at Run() startup, reuse
+         for every kernel-service call. Simpler than Python's session-per-
+         call because C# doesn't need an async-context-manager per call. -->
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <!-- Minimal ASP.NET Core for the agent's /health, /describe, /invoke.
+         FrameworkReference (not PackageReference) — Microsoft.AspNetCore.App
+         ships with the shared framework, and NETSDK1080 tells us not to
+         add a redundant package reference alongside it. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

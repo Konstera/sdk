@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "konstera-sdk"
+version = "0.5.0"
+description = "Python SDK for building Konstera agents. Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing."
+readme = "README.md"
+license = { text = "BUSL-1.1" }
+authors = [{ name = "Konstera", email = "hello@konstera.example" }]
+requires-python = ">=3.11"
+keywords = ["konstera", "agents", "mcp", "ai", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "mcp>=2.0.0",
+    "starlette>=0.41.0",
+    "uvicorn[standard]>=0.30.0",
+    "httpx>=0.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[project.urls]
+Homepage = "https://konstera.example"
+Documentation = "https://konstera.example/docs/sdk-python"
+Repository = "https://github.com/konstera/konstera"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/konstera_sdk"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "RUF"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

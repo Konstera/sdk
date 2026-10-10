@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://konstera.io/schemas/agent-manifest/v3.json",
+  "title": "Konstera Agent Manifest v3",
+  "description": "The contract between an agent package and the Konstera kernel. Per ADR-011 §1: elevated to a validated first-class contract. Validated at upload time (POST /api/packages) and by `konstera validate` CLI. Field naming is camelCase to match existing repo convention.",
+  "type": "object",
+  "required": ["manifestVersion", "id", "name", "version", "runtime"],
+  "additionalProperties": false,
+
+  "properties": {
+    "$schema":         { "type": "string", "format": "uri" },
+    "manifestVersion": { "const": 3, "description": "Fixed at 3 for this schema. Older manifests (v2) remain readable by the kernel but the platform warns and disables v3-only features (see ADR-011)." },
+
+    "id":          { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$", "description": "Reverse-DNS agent identifier, e.g. io.konstera.prepayments-agent." },
+    "name":        { "type": "string", "minLength": 1, "maxLength": 200 },
+    "version":     { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9-.]+)?(\\+[a-zA-Z0-9-.]+)?$", "description": "SemVer 2.0." },
+    "description": { "type": "string", "maxLength": 4000 },
+    "icon":        { "type": "string", "maxLength": 512, "description": "Emoji or absolute image URL. Portal auto-detects." },
+    "license":     { "type": "string", "maxLength": 100 },
+    "groupName":   { "type": "string", "maxLength": 100, "description": "Portal grouping (Finance, Reference, …). Overrides tenant default if set." },
+
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name":  { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "url":   { "type": "string", "format": "uri" }
+      }
+    },
+
+    "runtime": {
+      "type": "object",
+      "required": ["kind", "image", "port", "healthPath", "timeoutSeconds"],
+      "additionalProperties": false,
+      "properties": {
+        "kind":           { "enum": ["container", "mcp-stdio", "mcp-http"], "description": "Dispatched by IAgentHost." },
+        "image":          { "type": "string", "minLength": 1, "description": "OCI image reference." },
+        "port":           { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "healthPath":     { "type": "string", "pattern": "^/", "description": "HTTP path for kernel readiness probe." },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 3600, "description": "Invocation timeout used by the kernel HTTP client." },
+        "memoryMi":       { "type": "integer", "minimum": 32, "maximum": 32768, "description": "Container memory cap in MiB. Null uses platform default." },
+        "cpuMillis":      { "type": "integer", "minimum": 50, "maximum": 32000, "description": "CPU cap in millicores (1000 = 1 core). Null uses platform default." },
+        "pidsLimit":      { "type": "integer", "minimum": 10, "maximum": 10000, "description": "Max processes/threads. Null uses platform default." }
+      }
+    },
+
+    "llmRequirements": {
+      "type": "array",
+      "description": "Abstract LLM capabilities the agent needs. Tenant admin binds each purpose to a concrete model in the portal Providers page (per ADR-011 §2).",
+      "items": {
+        "type": "object",
+        "required": ["purpose"],
+        "additionalProperties": false,
+        "properties": {
+          "purpose":            { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Abstract capability slug (e.g. 'narrator', 'classifier')." },
+          "suggestedModel":     { "type": "string", "description": "Optional hint the tenant admin sees when binding." },
+          "maxTokens":          { "type": "integer", "minimum": 1 },
+          "supportsStreaming":  { "type": "boolean", "default": false },
+          "description":        { "type": "string" }
+        }
+      }
+    },
+
+    "connectionRequirements": {
+      "type": "array",
+      "description": "DEPRECATED per ADR-013: prefer `capabilities.needs[]` (canonical capability catalog) over acceptable-type lists. Kept for backwards-compat with older agents.",
+      "items": {
+        "type": "object",
+        "required": ["purpose", "acceptableTypes"],
+        "additionalProperties": false,
+        "properties": {
+          "purpose":         { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+          "acceptableTypes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "grantRequired":   { "type": "boolean", "default": true },
+          "description":     { "type": "string" }
+        }
+      }
+    },
+
+    "capabilities": {
+      "type": "object",
+      "description": "ADR-013 capability layer — agent declares abstract capabilities it needs from the platform catalog; operator binds each to a concrete connection in the portal at install time. Same image serves many delivery models (retail / SaaS / hybrid).",
+      "additionalProperties": false,
+      "properties": {
+        "needs": {
+          "type": "array",
+          "description": "The capabilities this agent asks for. Names must exist in the platform catalog (validated at package upload). Required capabilities must be bound before the agent can be enabled; optional capabilities disappear from ctx.capability.available() when unbound.",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name":     { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", "description": "Canonical capability key from the platform catalog (e.g. 'orders.lookup_by_email')." },
+              "required": { "type": "boolean", "default": true, "description": "Whether this capability must be bound for the agent to be enabled." },
+              "reason":   { "type": "string", "maxLength": 500, "description": "Human-readable justification shown to the operator when they bind this capability." }
+            }
+          }
+        }
+      }
+    },
+
+    "outputSchema": {
+      "type": "object",
+      "description": "JSON Schema describing what the agent returns in AgentResponse.structured. Drives the dynamic output UI renderer."
+    },
+
+    "uiHints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "heroField":         { "type": "string", "description": "Top-level field name to render prominently." },
+        "heroFormat":        { "type": "string", "description": "Format hint, e.g. 'currency:USD', 'percent', 'count'." },
+        "heroLabel":         { "type": "string", "description": "Label shown with the hero value (portal default: prettified heroField)." },
+        "kpiFields":         { "type": "array", "items": { "type": "string" }, "description": "Dot-paths rendered as secondary KPI tiles." },
+        "tableFields":       { "type": "array", "items": { "type": "string" } },
+        "collapsibleFields": { "type": "array", "items": { "type": "string" } },
+        "uiComponent":       { "type": "string", "description": "Escape hatch: name of a bespoke React component to render instead of generic renderer." }
+      }
+    },
+
+    "reviewActions": {
+      "type": "array",
+      "description": "Custom actions the Reviewer Inbox renders for approvals this agent submits (ADR-010 Pass C; ADR-029 adds shortLabel, icon, confirm, actionType, target and payload). Targets are slot names the tenant binds to a connection; URLs and secrets never go in the manifest.",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "key":            { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "label":          { "type": "string", "minLength": 1, "maxLength": 100, "description": "Full label; shown as the tooltip when shortLabel is set." },
+          "shortLabel":     { "type": "string", "minLength": 1, "maxLength": 20, "description": "Button text (ADR-029, max 20 characters)." },
+          "icon":           { "enum": ["send", "edit", "x", "refresh", "escalate", "mail", "webhook", "api", "check", "flag"] },
+          "confirm":        { "type": "string", "minLength": 1, "maxLength": 200, "description": "Question asked before the action runs." },
+          "kind":           { "enum": ["positive", "negative", "neutral"] },
+          "actionType":     { "enum": ["agent", "email", "webhook", "api"], "default": "agent", "description": "agent: the decision goes back to the agent (on_decision). email: sent through the agent's email.send binding. webhook / api: a JSON POST through the HTTP endpoint connection bound to target." },
+          "target":         { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$", "description": "Action slot name; required for email, webhook and api. The tenant binds it to a connection on the agent's Bindings tab." },
+          "payload":        { "type": "object", "description": "JSON body template. String values may contain {{ var }} with var one of approval.id, approval.kind, draft.content, detail.<key>, thread.id, thread.subject, inputs.<field>, reviewer.id. No other expressions." },
+          "reasonRequired": { "type": "boolean", "default": false },
+          "requiresInput": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["field", "type"],
+              "additionalProperties": false,
+              "properties": {
+                "field": { "type": "string" },
+                "type":  { "enum": ["string", "number", "integer", "boolean"] },
+                "min":   { "type": "number" },
+                "max":   { "type": "number" },
+                "label": { "type": "string" }
+              }
+            }
+          }
+        },
+        "if":   { "required": ["actionType"], "properties": { "actionType": { "enum": ["email", "webhook", "api"] } } },
+        "then": { "required": ["target"] }
+      }
+    },
+
+    "review_context_panels": {
+      "type": "array",
+      "description": "ADR-026: the agent's default Reviewer Inbox context panel. Up to four widgets in fixed slots (header, primary, secondary, footer), at most one per slot; each widget is fed by one read-only capability the manifest declares in capabilities.needs[]. A panel whose capability isn't bound for an instance is not shown. A per-instance override (agent_review_panel_overrides) replaces this list entirely. Snake_case key as written in ADR-026.",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["slot", "widget", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "slot":   { "enum": ["header", "primary", "secondary", "footer"] },
+          "widget": { "enum": ["identity_card", "metric_tile", "list", "timeseries", "kv_grid", "markdown_block"] },
+          "title":  { "type": "string", "minLength": 1, "maxLength": 100 },
+          "source": {
+            "type": "object",
+            "required": ["capability"],
+            "additionalProperties": false,
+            "properties": {
+              "capability": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", "description": "Capability key; must be declared in capabilities.needs[]." },
+              "args":       { "type": "object", "description": "Arguments for the capability. String values may contain {{ thread.* }}, {{ widget.<slot>.* }} or {{ tenant.* }} templates (resolved by the portal)." }
+            }
+          }
+        }
+      }
+    },
+
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxAttempts":         { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 },
+        "backoff":             { "enum": ["fixed", "exponential"], "default": "exponential" },
+        "initialDelayMs":      { "type": "integer", "minimum": 100, "default": 1000 },
+        "retryOnCategories":   { "type": "array", "items": { "$ref": "#/$defs/errorCategory" } },
+        "noRetryOnCategories": { "type": "array", "items": { "$ref": "#/$defs/errorCategory" } }
+      }
+    },
+
+    "errorHandling": {
+      "type": "object",
+      "description": "Circuit-breaker parameters. Defaults live in HealthTracker; manifest overrides.",
+      "additionalProperties": false,
+      "properties": {
+        "maxConsecutiveFailures":   { "type": "integer", "minimum": 1, "default": 5 },
+        "circuitCooldownSeconds":   { "type": "integer", "minimum": 1, "default": 300 },
+        "circuitBackoffMultiplier": { "type": "number",  "minimum": 1, "default": 2 },
+        "alertOnCategories":        { "type": "array", "items": { "$ref": "#/$defs/errorCategory" } }
+      }
+    },
+
+    "triggers": {
+      "type": "array",
+      "description": "How this agent gets invoked beyond direct sync/async API calls. Platform-provided, agent-declared.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "cadence"],
+            "additionalProperties": false,
+            "properties": {
+              "kind":     { "const": "cron" },
+              "cadence":  { "type": "string", "description": "Cron expression, standard 5-field." },
+              "timezone": { "type": "string", "default": "UTC" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "path"],
+            "additionalProperties": false,
+            "properties": {
+              "kind":         { "const": "webhook" },
+              "path":         { "type": "string", "description": "Route slug — served at /wh/{path}." },
+              "hmacRequired": { "type": "boolean", "default": true }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "subscribesTo"],
+            "additionalProperties": false,
+            "properties": {
+              "kind":         { "const": "event" },
+              "subscribesTo": { "type": "string", "description": "Event topic slug." }
+            }
+          }
+        ]
+      }
+    },
+
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metrics":  { "type": "array", "items": { "type": "string" } },
+        "trace":    { "enum": ["otel", "none"], "default": "otel" },
+        "logLevel": { "enum": ["debug", "info", "warn", "error"], "default": "info" }
+      }
+    },
+
+    "kernelServices": {
+      "type": "object",
+      "description": "Informational — actual enforcement is per-MCP-call. Helps portal describe agents accurately.",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "array", "items": { "$ref": "#/$defs/kernelServiceName" } },
+        "optional": { "type": "array", "items": { "$ref": "#/$defs/kernelServiceName" } },
+        "notes":    { "type": "string" }
+      }
+    },
+
+    "config": {
+      "type": "object",
+      "description": "JSON Schema for the agent's instance-level configuration. Portal renders a form from it when creating an instance."
+    },
+
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network":         { "type": "array", "items": { "type": "string" }, "description": "Allowed egress hosts. Empty means kernel-network only." },
+        "filesystem":      { "enum": ["none", "readonly", "read-write"], "default": "none" },
+        "callableAgents":  { "type": "array", "items": { "type": "string" }, "description": "Reverse-DNS ids of other agents this one may invoke." }
+      }
+    }
+  },
+
+  "$defs": {
+    "errorCategory": {
+      "enum": [
+        "input_invalid",
+        "agent_bug",
+        "agent_timeout",
+        "dependency_failure",
+        "credential_missing",
+        "budget_exceeded",
+        "platform_bug",
+        "circuit_open"
+      ],
+      "description": "The taxonomy the kernel classifies every failure into (ADR-011 §5). Manifest fields that reference categories must use these exact strings."
+    },
+    "kernelServiceName": {
+      "enum": [
+        "log", "llm", "state", "vector", "credentials", "cost",
+        "tool", "agents", "artifact", "human", "rule", "connector", "prompt",
+        "capability"
+      ]
+    }
+  }
+}
