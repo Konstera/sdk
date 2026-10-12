@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ._invocation_context import current_invocation_id
 from ._mcp import KernelMcpClient
 
 
@@ -80,15 +81,19 @@ class CapabilityService:
             CapabilityUpstreamFailed — underlying connector/recipe failed
             CapabilityError          — other capability-layer failures
         """
+        params: dict[str, Any] = {
+            "callerInstanceId": self._instance,
+            "name": name,
+            "argsJson": json.dumps(args, default=str),
+        }
+        # The invocation this call belongs to. The kernel uses it only to let a
+        # human-authored call (a ticket reply after a reviewer approved it) act
+        # for that reviewer, after checking it against its own records.
+        invocation_id = current_invocation_id()
+        if invocation_id:
+            params["invocationId"] = invocation_id
         try:
-            raw = await self._mcp.call_tool_for_result(
-                "capability_call",
-                {
-                    "callerInstanceId": self._instance,
-                    "name": name,
-                    "argsJson": json.dumps(args, default=str),
-                },
-            )
+            raw = await self._mcp.call_tool_for_result("capability_call", params)
         except Exception as e:
             # Kernel surfaces CapabilityError sub-codes as
             # "[Unbound] Agent has no binding..." etc — parse the prefix.

@@ -71,3 +71,23 @@ async def test_capability_call_accepts_an_argument_called_name():
     tool, args = mcp.calls[0]
     assert tool == "capability_call" and args["name"] == "db.proc.stats"
     assert args["argsJson"] == '{"name": "dbo.procDWGetProductsToSync"}'
+
+
+async def test_capability_call_sends_the_current_invocation_id():
+    # ADR-023: the kernel uses it to let a human-authored call act for the approver.
+    from konstera_sdk._invocation_context import enter_invocation
+
+    mcp = _RecordingMcp()
+    svc = CapabilityService(mcp, "agent-1")
+    with enter_invocation("3f2504e0-4f89-11d3-9a0c-0305e82c3301"):
+        await svc.call("tickets.reply", ticketId="7", body="Hi")
+    _, args = mcp.calls[0]
+    assert args["invocationId"] == "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+
+
+async def test_capability_call_outside_an_invocation_sends_no_invocation_id():
+    mcp = _RecordingMcp()
+    svc = CapabilityService(mcp, "agent-1")
+    await svc.call("tickets.reply", ticketId="7", body="Hi")
+    _, args = mcp.calls[0]
+    assert "invocationId" not in args
