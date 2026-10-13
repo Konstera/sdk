@@ -68,6 +68,34 @@ class SkillStep:
 
 
 @dataclass(slots=True, frozen=True)
+class ClusterPassRate:
+    """Per-cluster pass-rate snapshot from the most recent harness run
+    (ADR-037 M13 W3-B). Consumed by the cluster-aware autopilot gate.
+
+    `pass_rate` is in [0.0, 1.0]. `total` is included so a sample size of 1
+    doesn't look as authoritative as 10 — a future gate ADR may require a
+    minimum `total` before trusting the rate."""
+
+    cluster_tag: str
+    total: int
+    passed: int
+    pass_rate: float
+    run_id: str
+    recorded_at: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "ClusterPassRate":
+        return cls(
+            cluster_tag=str(d["cluster_tag"]),
+            total=int(d["total"]),
+            passed=int(d["passed"]),
+            pass_rate=float(d["pass_rate"]),
+            run_id=str(d["run_id"]),
+            recorded_at=str(d["recorded_at"]),
+        )
+
+
+@dataclass(slots=True, frozen=True)
 class Skill:
     """A named reusable playbook, as returned by SemanticService.skills_get.
     Steps are ordered by step_order ascending."""
@@ -178,6 +206,42 @@ class SemanticService:
         if _is_feature_disabled(data, method="context_skills_get"):
             return None
         return Skill.from_dict(data)
+
+    async def cluster_pass_rates(self, agent_id: str) -> dict[str, ClusterPassRate]:
+        """Return per-cluster pass rates from the most recent harness run
+        for an agent (ADR-037 M13 W3-B).
+
+        agent_id is the agent *package* UUID — the id recorded on
+        tenant_context_evaluation.agent_id when the goldens were seeded,
+        not an instance id. Pass the ticket-handling agent's package id
+        (see tenant_agent_instances.agent_id ↔ agent_packages.agent_id).
+
+        Returns an empty dict when no eval runs exist yet, when the
+        agent_id is unknown, or when the Context Service feature is
+        disabled for this tenant."""
+        raw = await self._mcp.call_tool_for_result(
+            "context_evaluation_cluster_pass_rates",
+            {"callerInstanceId": self._instance, "agentId": agent_id},
+        )
+        if not raw:
+            return {}
+        data = json.loads(raw)
+        if _is_feature_disabled(data, method="context_evaluation_cluster_pass_rates"):
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {k: ClusterPassRate.from_dict(v) for k, v in data.items()}
+
+    async def cluster_pass_rate(
+        self, agent_id: str, cluster_tag: str,
+    ) -> ClusterPassRate | None:
+        """Return the pass-rate snapshot for ONE cluster — the shape the
+        autopilot gate consumes. Thin wrapper over cluster_pass_rates:
+        the kernel still fetches the full map (one DB round-trip either
+        way) but the caller gets exactly the key it asked for, or None
+        if that cluster has no eval data yet."""
+        m = await self.cluster_pass_rates(agent_id)
+        return m.get(cluster_tag)
 
 
 # ─── module-private helpers ──────────────────────────────────────────
