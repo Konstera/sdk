@@ -18,6 +18,7 @@ from .human import HumanService
 from .llm import LlmService
 from .logging import LogService
 from .rule import RuleService
+from .semantic import SemanticService
 from .state import StateService
 from .tool import ToolService
 from .vector import VectorService
@@ -54,6 +55,7 @@ class AgentContext:
     rule: RuleService            # M7d
     connector: ConnectorService  # ADR-009
     capability: CapabilityService  # ADR-013 — purpose-first indirection over connectors
+    semantic: SemanticService    # ADR-037 — tenant semantic plane (glossary / skills / ontology)
 
     @classmethod
     def from_env(cls, mcp: KernelMcpClient, defaults: dict[str, str] | None = None) -> "AgentContext":
@@ -95,4 +97,5 @@ class AgentContext:
             rule=RuleService(mcp, instance_id),
             connector=ConnectorService(mcp, instance_id),
             capability=CapabilityService(mcp, instance_id),
+            semantic=SemanticService(mcp, instance_id),
         )

@@ -29,12 +29,13 @@ from .llm import LlmResult, LlmService
 from .logging import LogService
 from .rule import Rule, RuleService, RuleSummary
 from .runtime import run
+from .semantic import GlossaryTerm, SemanticService, Skill, SkillStep
 from .state import StateService
 from .tool import ToolService
 from .types import AgentRequest, AgentResponse
 from .vector import VectorHit, VectorService
 
-__version__ = "0.9.0"   # ADR-013 — ctx.capability.* purpose-first indirection over connectors
+__version__ = "0.10.0"  # ADR-037 — ctx.semantic.* tenant semantic plane (glossary / skills)
 
 __all__ = [
     "Agent",
@@ -57,6 +58,7 @@ __all__ = [
     "ConnectorService",
     "CostService",
     "CredentialsService",
+    "GlossaryTerm",
     "HumanDecision",
     "HumanService",
     "LlmResult",
@@ -65,6 +67,9 @@ __all__ = [
     "Rule",
     "RuleService",
     "RuleSummary",
+    "SemanticService",
+    "Skill",
+    "SkillStep",
     "StateService",
     "ToolService",
     "VectorHit",
