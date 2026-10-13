@@ -116,6 +116,16 @@ class SemanticService:
       - skills_get(name) → Skill | None
 
     Caller instance UUID is injected automatically on every call.
+
+    Feature-toggle degradation (ADR-039): when the tenant has
+    Context Service disabled, the kernel returns a
+    {status: "feature_disabled", feature: ..., upgrade_hint: ...}
+    envelope. The SDK translates that into the method's natural
+    "nothing to return" shape (None for lookups, [] for lists) so
+    agents can branch on the normal data-availability path without
+    special-casing. feature_disabled is logged once per method call
+    at INFO level so operators can see when a toggle is suppressing
+    traffic — no exceptions raised.
     """
 
     def __init__(self, mcp: KernelMcpClient, instance_id: str):
@@ -124,18 +134,23 @@ class SemanticService:
 
     async def glossary_lookup(self, term: str) -> GlossaryTerm | None:
         """Look up a term by case-insensitive name match, with synonym fallback.
-        Returns None if the term is unknown to this tenant."""
+        Returns None if the term is unknown to this tenant or the Context
+        Service feature is disabled."""
         raw = await self._mcp.call_tool_for_result(
             "context_glossary_lookup",
             {"callerInstanceId": self._instance, "term": term},
         )
         if not raw or raw == "null":
             return None
-        return GlossaryTerm.from_dict(json.loads(raw))
+        data = json.loads(raw)
+        if _is_feature_disabled(data, method="context_glossary_lookup"):
+            return None
+        return GlossaryTerm.from_dict(data)
 
     async def glossary_list(self, domain: str | None = None) -> list[GlossaryTerm]:
         """List active glossary terms, optionally filtered by domain
-        (cs | merch | supply_chain | finance | general)."""
+        (cs | merch | supply_chain | finance | general). Returns [] when
+        the Context Service feature is disabled."""
         args: dict[str, Any] = {"callerInstanceId": self._instance}
         if domain is not None:
             args["domain"] = domain
@@ -143,17 +158,45 @@ class SemanticService:
         if not raw:
             return []
         data = json.loads(raw)
+        if _is_feature_disabled(data, method="context_glossary_list"):
+            return []
         if not isinstance(data, list):
             return []
         return [GlossaryTerm.from_dict(t) for t in data]
 
     async def skills_get(self, name: str) -> Skill | None:
-        """Fetch a skill by name with its ordered steps hydrated. Returns None
-        if the skill is unknown or archived."""
+        """Fetch a skill by name with its ordered steps hydrated. Returns
+        None if the skill is unknown, archived, or the Context Service
+        feature is disabled."""
         raw = await self._mcp.call_tool_for_result(
             "context_skills_get",
             {"callerInstanceId": self._instance, "skillName": name},
         )
         if not raw or raw == "null":
             return None
-        return Skill.from_dict(json.loads(raw))
+        data = json.loads(raw)
+        if _is_feature_disabled(data, method="context_skills_get"):
+            return None
+        return Skill.from_dict(data)
+
+
+# ─── module-private helpers ──────────────────────────────────────────
+
+import logging  # local import — only this helper needs the logger
+
+_log = logging.getLogger(__name__)
+
+
+def _is_feature_disabled(data: Any, *, method: str) -> bool:
+    """Recognise the ADR-039 feature-disabled envelope. Returns True (and
+    logs once at INFO) when the response is the sentinel shape. Any other
+    dict/list/scalar passes through for normal parsing."""
+    if isinstance(data, dict) and data.get("status") == "feature_disabled":
+        _log.info(
+            "%s suppressed — feature %r disabled for this tenant (hint: %s)",
+            method,
+            data.get("feature", "?"),
+            data.get("upgrade_hint", ""),
+        )
+        return True
+    return False
