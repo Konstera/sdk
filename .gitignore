@@ -1,0 +1,22 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Python
+**/__pycache__/
+**/*.egg-info/
+**/.pytest_cache/
+**/dist/
+**/build/
+
+# TypeScript / Node
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
