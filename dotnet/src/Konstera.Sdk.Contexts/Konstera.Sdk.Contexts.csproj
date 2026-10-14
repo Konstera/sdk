@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Konstera.Sdk.Contexts</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Typed constants for the Konstera Standard Context Pack v1 — canonical glossary / skill / ontology-entity names that every retail-core seed pack guarantees. Agent authors reference ContextTerms.RefundWindowDays instead of magic strings so typos fail at build time, not install. Generated from sdk/schemas/standard-context-pack-v1.json; see sdk/scripts/generate_constants.py.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <Authors>Konstera</Authors>
+    <PackageTags>konstera;agents;context;mcp;retail</PackageTags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ship the pack JSON as content so consumers can bind to it at runtime
+         if they want (e.g. for a settings UI that lists all available terms).
+         Generated/*.g.cs is the typed-constant layer; this is the raw source. -->
+    <Content Include="..\..\..\schemas\standard-context-pack-v1.json">
+      <Link>schemas\standard-context-pack-v1.json</Link>
+      <PackagePath>contentFiles\any\any\schemas\standard-context-pack-v1.json;content\schemas\standard-context-pack-v1.json</PackagePath>
+      <CopyToOutput>true</CopyToOutput>
+      <BuildAction>Content</BuildAction>
+    </Content>
+  </ItemGroup>
+
+</Project>
