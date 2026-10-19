@@ -56,6 +56,76 @@ class GlossaryTerm:
 
 
 @dataclass(slots=True, frozen=True)
+class OntologyEntity:
+    """A business entity from the tenant ontology (ADR-037 Step 3.5 B.2).
+
+    Returned by SemanticService.ontology_lookup. The `properties` field
+    is the full JSONB blob stored for the entity — tenant-authored and
+    intentionally not strongly typed, since different entities carry
+    different shapes (customer has `identity` + `key_attributes`; order
+    may carry lifecycle status enums; product may carry supplier bindings).
+
+    Agents parse `properties` themselves. For the customer entity under
+    the thin-semantic model (migration 115), the shape is:
+
+        {
+          "identity": {
+            "primary":   {"field": "...", "capability": "..."},
+            "fallbacks": [{"field": "...", "capability": "..."}, ...]
+          },
+          "key_attributes": {
+            "<name>": {"type": "enum|number|datetime|...", "values": [...], ...}
+          }
+        }
+
+    See wiki/concepts/ontology.md for the full worked scenario.
+    """
+
+    id: str
+    canonical_name: str
+    entity_type: str
+    synonyms: list[str]
+    description: str | None
+    repository_id: str
+    repository_name: str
+    properties: dict[str, Any]      # Parsed JSON from the kernel's string field
+    source: str                     # starter_template | authored | external_catalog
+    status: str                     # active | archived
+    updated_at: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "OntologyEntity":
+        # Kernel ships `properties` as a JSON *string* (OntologyEntityView
+        # PropertiesJson in Konstera.Kernel.Context.ContextTypes). Parse
+        # here so agent code reads nested shapes directly without a double
+        # json.loads at every call site.
+        raw_props = d.get("properties") or "{}"
+        if isinstance(raw_props, str):
+            try:
+                parsed_props: dict[str, Any] = json.loads(raw_props)
+            except json.JSONDecodeError:
+                parsed_props = {}
+        elif isinstance(raw_props, dict):
+            parsed_props = raw_props
+        else:
+            parsed_props = {}
+
+        return cls(
+            id=str(d["id"]),
+            canonical_name=str(d["canonical_name"]),
+            entity_type=str(d["entity_type"]),
+            synonyms=list(d.get("synonyms") or []),
+            description=d.get("description"),
+            repository_id=str(d["repository_id"]),
+            repository_name=str(d["repository_name"]),
+            properties=parsed_props,
+            source=str(d.get("source", "authored")),
+            status=str(d.get("status", "active")),
+            updated_at=str(d["updated_at"]),
+        )
+
+
+@dataclass(slots=True, frozen=True)
 class SkillStep:
     """One step of a Skill playbook. `payload` is passed through verbatim —
     the shape depends on `kind` (lookup / decide / action / invoke_capability).
@@ -141,7 +211,9 @@ class SemanticService:
     Methods:
       - glossary_lookup(term) → GlossaryTerm | None
       - glossary_list(domain=None) → list[GlossaryTerm]
+      - ontology_lookup(entity_name) → OntologyEntity | None
       - skills_get(name) → Skill | None
+      - cluster_pass_rate(agent_id, cluster_tag) → ClusterPassRate | None
 
     Caller instance UUID is injected automatically on every call.
 
@@ -191,6 +263,29 @@ class SemanticService:
         if not isinstance(data, list):
             return []
         return [GlossaryTerm.from_dict(t) for t in data]
+
+    async def ontology_lookup(self, entity_name: str) -> OntologyEntity | None:
+        """Look up a business entity by case-insensitive name match, with
+        synonym fallback. Returns None if the entity is unknown to this
+        tenant or the Context Service feature is disabled.
+
+        The returned entity's `properties` dict is parsed JSON — for the
+        customer entity under the thin-semantic model (migration 115) it
+        carries `identity.primary` + `identity.fallbacks[]` + `key_attributes`.
+        See wiki/concepts/ontology.md §Worked scenario for how agents
+        iterate the identity list to resolve a customer across any backing
+        vendor the operator has bound.
+        """
+        raw = await self._mcp.call_tool_for_result(
+            "context_ontology_resolve",
+            {"callerInstanceId": self._instance, "entityName": entity_name},
+        )
+        if not raw or raw == "null":
+            return None
+        data = json.loads(raw)
+        if _is_feature_disabled(data, method="context_ontology_resolve"):
+            return None
+        return OntologyEntity.from_dict(data)
 
     async def skills_get(self, name: str) -> Skill | None:
         """Fetch a skill by name with its ordered steps hydrated. Returns
