@@ -51,9 +51,24 @@ class CapabilityService:
         self._instance = instance_id
 
     async def available(self, name: str) -> bool:
-        """True iff the operator has bound this capability to a connection
-        for this agent instance. Cheap — single DB hit. Use before calling
-        optional capabilities.
+        """Check whether a capability is bound for this agent instance.
+
+        Cheap — single DB hit. Use before calling optional capabilities to
+        avoid `CapabilityUnbound` exceptions. Required capabilities don't
+        need this check (the platform blocks agent enable until they're bound).
+
+        Args:
+            name: The canonical capability name (e.g. `"orders.lookup_by_email"`).
+
+        Returns:
+            `True` if the operator has bound this capability to a connection,
+            `False` otherwise. Fails closed on malformed responses.
+
+        Example:
+            >>> if await ctx.capability.available("orders.lookup_by_email"):
+            ...     orders = await ctx.capability.call(
+            ...         "orders.lookup_by_email", email="customer@example.com"
+            ...     )
         """
         raw = await self._mcp.call_tool_for_result(
             "capability_available",
@@ -69,17 +84,47 @@ class CapabilityService:
         """Invoke a capability by canonical name.
 
         `name` is positional-only so a capability can take an argument called
-        `name` itself (db.object.definition, db.proc.stats):
-        ``await ctx.capability.call("db.proc.stats", name="dbo.procX")``.
+        `name` itself (e.g. `db.object.definition`, `db.proc.stats`):
 
-        Args are the canonical arg shape (see capability_catalog for the
-        exact schema per capability). Response is always the canonical
-        response shape regardless of which connector backs it.
+            await ctx.capability.call("db.proc.stats", name="dbo.procX")
+
+        Args are the canonical arg shape per the capability catalogue. Response
+        is always the canonical response shape regardless of which connector
+        (Shopify, BigCommerce, custom REST, etc.) backs the capability.
+
+        Args:
+            name: Canonical capability name (positional-only).
+            **args: Capability-specific keyword arguments. Shape documented
+                per capability in the catalogue.
+
+        Returns:
+            The canonical response payload — typically a dict, sometimes a
+            list. Shape documented per capability. `None` when the kernel
+            returned an empty response.
 
         Raises:
-            CapabilityUnbound       — no binding for this capability
-            CapabilityUpstreamFailed — underlying connector/recipe failed
-            CapabilityError          — other capability-layer failures
+            CapabilityUnbound: No binding for this capability on this agent
+                instance. Expected for optional capabilities — guard with
+                `available()` first.
+            CapabilityUpstreamFailed: The connector or REST recipe backing
+                this capability threw, or returned a response that didn't
+                match the canonical schema.
+            CapabilityError: Other capability-layer failures (base type —
+                both of the above subclass it).
+
+        Example:
+            >>> try:
+            ...     orders = await ctx.capability.call(
+            ...         "orders.lookup_by_email",
+            ...         email="customer@example.com",
+            ...         limit=10,
+            ...     )
+            ... except CapabilityUnbound:
+            ...     await ctx.log.info("no order source bound; skipping")
+            ...     orders = []
+            ... except CapabilityUpstreamFailed as e:
+            ...     await ctx.log.warn("order lookup failed", error=str(e))
+            ...     orders = []
         """
         params: dict[str, Any] = {
             "callerInstanceId": self._instance,

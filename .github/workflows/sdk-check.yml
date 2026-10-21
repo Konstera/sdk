@@ -26,7 +26,7 @@ jobs:
           fi
 
   python-build:
-    name: Python SDK build + test
+    name: Python SDK build + test + lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,10 +37,17 @@ jobs:
         run: pip install -e "python[dev]"
       - name: Install konstera-sdk-contexts (editable)
         run: pip install -e python/konstera-sdk-contexts
-      - name: Install test dependencies
-        # pytest-cov is used by the coverage report; starlette provides TestClient
-        # for the integration tests (not pulled in by the SDK's runtime deps).
-        run: pip install pytest-cov httpx
+      - name: Install additional dev tools
+        # pytest-cov for coverage report; httpx for Starlette TestClient
+        # (integration tests); mypy for strict type-check (ruff is already
+        # in [project.optional-dependencies.dev]).
+        run: pip install pytest-cov httpx mypy
+      - name: Ruff lint
+        working-directory: python
+        run: python -m ruff check src/ tests/
+      - name: Mypy type-check
+        working-directory: python
+        run: python -m mypy src/konstera_sdk/
       - name: Run pytest with coverage
         working-directory: python
         run: python -m pytest tests/ --cov=konstera_sdk --cov-report=term --cov-fail-under=95

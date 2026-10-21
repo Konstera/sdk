@@ -145,7 +145,9 @@ class HumanService:
         )
         return self._parse(raw)
 
-    async def list_pending(self, *, mine_only: bool = False, limit: int = 50) -> list[HumanDecision]:
+    async def list_pending(
+        self, *, mine_only: bool = False, limit: int = 50
+    ) -> list[HumanDecision]:
         """List pending approvals in the tenant. If `mine_only`, filter to
         approvals this agent instance submitted."""
         args: dict[str, Any] = {

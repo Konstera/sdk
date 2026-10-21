@@ -162,7 +162,7 @@ class TestCallTypedErrorMapping:
         )
         cap = CapabilityService(mcp, "inst-1")  # type: ignore[arg-type]
 
-        with pytest.raises(CapabilityUnbound, match="orders.lookup_by_id"):
+        with pytest.raises(CapabilityUnbound, match=r"orders\.lookup_by_id"):
             await cap.call("orders.lookup_by_id")
 
     async def test_upstream_failed_prefix_raises_capability_upstream_failed(self):

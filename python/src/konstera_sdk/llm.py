@@ -27,7 +27,7 @@ from ._mcp import KernelMcpClient
 @dataclass(slots=True, frozen=True)
 class LlmResult:
     """Structured LLM response. Cost is USD and computed kernel-side from the
-    returned token counts × the model's catalogue price."""
+    returned token counts multiplied by the model's catalogue price."""
     content: str
     model: str
     provider: str
@@ -57,11 +57,54 @@ class LlmService:
         max_tokens: int | None = None,
         invocation_id: str | None = None,
     ) -> LlmResult:
-        """Complete against an LLM. Pass either `purpose` (preferred) or
-        `model`. See module docstring for the difference.
+        """Complete against an LLM via the kernel's provider-agnostic router.
 
-        Cost is recorded automatically — you do NOT need to call
-        `ctx.cost.record` for LLM calls.
+        Pass either `purpose` (preferred) OR `model`. Purpose is resolved
+        kernel-side to the tenant's bound provider + credentials + budget cap,
+        so admins can swap providers without touching agent code.
+
+        Cost is recorded automatically — you do **not** need to call
+        `ctx.cost.record()` for LLM calls.
+
+        Args:
+            prompt: The user prompt / instructions.
+            purpose: Named purpose (e.g. `"narrator"`, `"classifier"`,
+                `"investigator"`). Resolved to a concrete model by the tenant's
+                `llm_bindings` table. Prefer this over `model=` for portable
+                agents.
+            model: Explicit model name (e.g. `"claude-sonnet-4-6"`,
+                `"gpt-5"`). Bypasses purpose indirection. Use only for
+                one-off scripts or when a specific model is required.
+            system: Optional system prompt. Prepended to the conversation
+                in a provider-appropriate way (Anthropic: `system` param;
+                OpenAI: a `role: system` message).
+            temperature: Sampling temperature in `[0.0, 1.0]`. `None` =
+                provider default (typically 0.7 for chat, 0 for
+                deterministic use).
+            max_tokens: Maximum output tokens. `None` = provider default.
+            invocation_id: Override for the ambient invocation ID. Rarely
+                needed; the SDK auto-injects the current invocation ID.
+
+        Returns:
+            `LlmResult` with `content`, `model`, `provider`, token counts
+            (incl. cached if the provider reports them), `cost_usd`, and
+            `stop_reason`. Fields are canonical regardless of provider.
+
+        Raises:
+            ValueError: If neither `purpose` nor `model` is supplied.
+            RuntimeError: If the kernel is unreachable, the provider errors,
+                or the tenant has no binding for the requested `purpose`.
+
+        Example:
+            >>> result = await ctx.llm.complete(
+            ...     prompt="Summarise this ticket for a reviewer.",
+            ...     purpose="narrator",
+            ...     system="You are terse. Max 2 sentences.",
+            ...     temperature=0.3,
+            ...     max_tokens=200,
+            ... )
+            >>> print(result.content)
+            >>> print(f"Cost: ${result.cost_usd:.4f}")
         """
         if not purpose and not model:
             raise ValueError("ctx.llm.complete: must supply either `purpose` or `model`.")

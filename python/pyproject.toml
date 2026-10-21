@@ -52,3 +52,20 @@ select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "RUF"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+# Tests use duck-typed mock MCP clients that don't match KernelMcpClient's full
+# type — the type: ignore[arg-type] comments inline handle that locally.
+# Service code itself is strict-typed clean.
+files = ["src/konstera_sdk"]
+# Allow kernel MCP response shapes to be dict[str, Any] without complaint —
+# the kernel's contract is a JSON envelope, strongly typed only at the dataclass
+# boundary where we parse into GlossaryTerm etc.
+disallow_any_explicit = false
+
+[[tool.mypy.overrides]]
+# The mcp library is untyped (as of 2.0.x) — allow until upstream ships stubs.
+module = ["mcp.*"]
+ignore_missing_imports = true

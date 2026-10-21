@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import contextlib
-import dataclasses
 import logging
 import os
 import signal
@@ -65,7 +64,7 @@ def build_app(agent: Agent, ctx: AgentContext) -> Starlette:
         try:
             with enter_invocation(req.invocation_id):
                 resp = await agent.handle(req, ctx)
-        except Exception as ex:  # noqa: BLE001
+        except Exception as ex:
             logger.exception("agent.handle failed for invocation %s", req.invocation_id)
             return JSONResponse(
                 {"error": {"type": type(ex).__name__, "message": str(ex)}},
@@ -73,7 +72,9 @@ def build_app(agent: Agent, ctx: AgentContext) -> Starlette:
             )
         return JSONResponse(_serialize_response(resp))
 
-    async def lifespan(_app: Starlette):
+    async def lifespan(_app: Starlette):  # type: ignore[no-untyped-def]
+        # Starlette's lifespan protocol expects an async generator; no clean
+        # way to annotate the yield-type without pulling in Starlette internals.
         await agent.initialize(ctx)
         try:
             yield
@@ -93,11 +94,48 @@ def build_app(agent: Agent, ctx: AgentContext) -> Starlette:
 
 
 def run(agent: Agent, port: int = 8080) -> None:
-    """Host `agent` as an HTTP server on `port`. Blocks until SIGTERM/SIGINT.
+    """Host `agent` as an HTTP server. Blocks until `SIGTERM` or `SIGINT`.
 
-    Reads KONSTERA_KERNEL_MCP_URL + KONSTERA_AGENT_* env vars set by the
-    kernel's ContainerAgentHost at container-create time. Runs fine in
-    direct-run mode (env unset) — kernel-callback services become no-ops.
+    Reads the following env vars set by the kernel's `ContainerAgentHost` at
+    container-create time:
+
+    - `KONSTERA_KERNEL_MCP_URL` — kernel's MCP callback endpoint. Unset in
+      direct-run / local-dev mode; kernel-callback services become no-ops.
+    - `KONSTERA_AGENT_INSTANCE_ID` — this instance's UUID.
+    - `KONSTERA_TENANT_ID` — tenant UUID.
+    - `KONSTERA_AGENT_ID` — the manifest-declared id (e.g. `io.konstera.hello`).
+    - `KONSTERA_AGENT_VERSION` — the manifest-declared version.
+    - `KONSTERA_LOG_LEVEL` — Python log level (default `INFO`).
+
+    Serves three HTTP endpoints:
+
+    - `GET /health` — liveness check. Returns `{status, agent, version}`.
+    - `GET /describe` — agent metadata. Returns `{id, version, capabilities, tools}`.
+    - `POST /invoke` — accepts `{invocationId, input, payload, config}`,
+      runs `agent.handle(req, ctx)` under the ambient invocation scope,
+      returns `{content, structured, toolCalls}`. Exceptions in `handle`
+      produce HTTP 500 with `{"error": {"type", "message"}}` and are logged.
+
+    Lifecycle: `agent.initialize(ctx)` fires once on startup;
+    `agent.shutdown(ctx)` fires on graceful stop. Exceptions in `shutdown`
+    are swallowed to not block container exit.
+
+    Args:
+        agent: An instance of your Agent subclass.
+        port: HTTP listen port. Defaults to 8080 (matches the Konstera
+            container contract — the kernel maps this internally).
+
+    Example:
+        >>> from konstera_sdk import Agent, AgentContext, AgentRequest, AgentResponse, run
+        >>>
+        >>> class HelloAgent(Agent):
+        ...     async def handle(
+        ...         self, req: AgentRequest, ctx: AgentContext
+        ...     ) -> AgentResponse:
+        ...         return AgentResponse(content=f"Hello, {req.input}!")
+        >>>
+        >>> if __name__ == "__main__":
+        ...     run(HelloAgent())
     """
     logging.basicConfig(
         level=os.getenv("KONSTERA_LOG_LEVEL", "INFO"),
@@ -133,7 +171,7 @@ def _serialize_response(resp: AgentResponse) -> dict[str, Any]:
     }
 
 
-__all__ = ["run", "build_app"]
+__all__ = ["build_app", "run"]
 
 # Signal handling note: uvicorn.run() installs its own SIGTERM/SIGINT handlers
 # and drives the lifespan protocol on shutdown. We deliberately don't add our

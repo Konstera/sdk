@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 from starlette.testclient import TestClient
 
 from konstera_sdk import Agent, AgentContext, AgentRequest, AgentResponse

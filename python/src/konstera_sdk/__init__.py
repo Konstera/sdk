@@ -10,8 +10,14 @@ from .agents import AgentInvokeResult, AgentsService
 from .artifact import (
     ArtifactListItem,
     ArtifactService,
+)
+from .artifact import (
     GetResult as ArtifactGetResult,
+)
+from .artifact import (
     HeadResult as ArtifactHeadResult,
+)
+from .artifact import (
     PutResult as ArtifactPutResult,
 )
 from .capability import (
@@ -68,11 +74,11 @@ __all__ = [
     "CredentialsService",
     "GlossaryTerm",
     "HumanDecision",
-    "OntologyEntity",
     "HumanService",
     "LlmResult",
     "LlmService",
     "LogService",
+    "OntologyEntity",
     "Rule",
     "RuleService",
     "RuleSummary",
@@ -83,8 +89,8 @@ __all__ = [
     "ToolService",
     "VectorHit",
     "VectorService",
-    "run",
     "__version__",
+    "run",
 ]
 
 # Legacy alias (safety net) — was referenced during design but never public.

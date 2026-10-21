@@ -26,8 +26,13 @@ def test_successful_result_returns_text():
 
 
 def test_error_result_raises_with_the_kernel_message():
-    with pytest.raises(RuntimeError, match=r"\[UpstreamFailed\] orders/search failed \(500\)"):
-        tool_result_text("capability_call", _result("[UpstreamFailed] orders/search failed (500)", True))
+    with pytest.raises(
+        RuntimeError, match=r"\[UpstreamFailed\] orders/search failed \(500\)"
+    ):
+        tool_result_text(
+            "capability_call",
+            _result("[UpstreamFailed] orders/search failed (500)", True),
+        )
 
 
 def test_error_result_without_text_still_raises():
@@ -67,7 +72,9 @@ async def test_capability_call_accepts_an_argument_called_name():
     # db.object.definition / db.proc.stats take {name}: the capability name is positional-only.
     mcp = _RecordingMcp()
     svc = CapabilityService(mcp, "agent-1")
-    assert await svc.call("db.proc.stats", name="dbo.procDWGetProductsToSync") == {"executionCount": 3}
+    assert await svc.call("db.proc.stats", name="dbo.procDWGetProductsToSync") == {
+        "executionCount": 3
+    }
     tool, args = mcp.calls[0]
     assert tool == "capability_call" and args["name"] == "db.proc.stats"
     assert args["argsJson"] == '{"name": "dbo.procDWGetProductsToSync"}'
