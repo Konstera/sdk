@@ -1,0 +1,135 @@
+name: release-dotnet
+
+# Publishes Konstera.Sdk + Konstera.Sdk.Contexts to NuGet.org.
+#
+# Tag conventions (see RELEASING.md):
+#   sdk-dotnet-v<X.Y.Z>           -> publishes Konstera.Sdk
+#   sdk-dotnet-contexts-v<X.Y.Z>  -> publishes Konstera.Sdk.Contexts
+#
+# Required secrets (one-time setup, see RELEASING.md):
+#   NUGET_API_KEY  — nuget.org API key with push permission on both packages
+
+on:
+  push:
+    tags:
+      - "sdk-dotnet-v*"
+      - "sdk-dotnet-contexts-v*"
+
+jobs:
+  publish-sdk:
+    name: Publish Konstera.Sdk to NuGet
+    if: startsWith(github.ref, 'refs/tags/sdk-dotnet-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/sdk-dotnet-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches .csproj
+        run: |
+          CSPROJ_VERSION=$(grep -oP '(?<=<Version>)[^<]+' dotnet/src/Konstera.Sdk/Konstera.Sdk.csproj)
+          echo "csproj: $CSPROJ_VERSION"
+          echo "tag:    ${{ steps.version.outputs.version }}"
+          if [ "$CSPROJ_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::csproj Version '$CSPROJ_VERSION' does not match tag 'sdk-dotnet-v${{ steps.version.outputs.version }}'. Bump the csproj or push the correct tag."
+            exit 1
+          fi
+
+      - name: Pack
+        run: |
+          dotnet pack dotnet/src/Konstera.Sdk/Konstera.Sdk.csproj \
+            --configuration Release \
+            --output ./nupkg
+
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./nupkg/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./nupkg/*.nupkg
+          generate_release_notes: true
+          body: |
+            Published to NuGet: https://www.nuget.org/packages/Konstera.Sdk/${{ steps.version.outputs.version }}
+
+            Install:
+            ```
+            dotnet add package Konstera.Sdk --version ${{ steps.version.outputs.version }}
+            ```
+
+  publish-contexts:
+    name: Publish Konstera.Sdk.Contexts to NuGet
+    if: startsWith(github.ref, 'refs/tags/sdk-dotnet-contexts-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/sdk-dotnet-contexts-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches .csproj
+        run: |
+          CSPROJ_VERSION=$(grep -oP '(?<=<Version>)[^<]+' dotnet/src/Konstera.Sdk.Contexts/Konstera.Sdk.Contexts.csproj)
+          echo "csproj: $CSPROJ_VERSION"
+          echo "tag:    ${{ steps.version.outputs.version }}"
+          if [ "$CSPROJ_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::csproj Version '$CSPROJ_VERSION' does not match tag 'sdk-dotnet-contexts-v${{ steps.version.outputs.version }}'."
+            exit 1
+          fi
+
+      - name: Regenerate from pack JSON (drift check)
+        run: |
+          python scripts/generate_constants.py
+          if ! git diff --exit-code dotnet/src/Konstera.Sdk.Contexts/Generated/; then
+            echo "::error::Generated .NET constants are out of sync with schemas/standard-context-pack-v1.json. Run 'python scripts/generate_constants.py' and commit before tagging."
+            exit 1
+          fi
+
+      - name: Pack
+        run: |
+          dotnet pack dotnet/src/Konstera.Sdk.Contexts/Konstera.Sdk.Contexts.csproj \
+            --configuration Release \
+            --output ./nupkg
+
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./nupkg/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./nupkg/*.nupkg
+          generate_release_notes: true
+          body: |
+            Published to NuGet: https://www.nuget.org/packages/Konstera.Sdk.Contexts/${{ steps.version.outputs.version }}
+
+            Install:
+            ```
+            dotnet add package Konstera.Sdk.Contexts --version ${{ steps.version.outputs.version }}
+            ```

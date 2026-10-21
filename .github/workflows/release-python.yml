@@ -1,0 +1,136 @@
+name: release-python
+
+# Publishes konstera-sdk + konstera-sdk-contexts to PyPI via OIDC trusted publisher.
+#
+# Tag conventions (see RELEASING.md):
+#   sdk-python-v<X.Y.Z>           -> publishes konstera-sdk
+#   sdk-python-contexts-v<X.Y.Z>  -> publishes konstera-sdk-contexts
+#
+# One-time setup (see RELEASING.md):
+#   Configure pending publishers on pypi.org for both packages. No long-lived
+#   token required — authentication is via GitHub OIDC per workflow filename.
+
+on:
+  push:
+    tags:
+      - "sdk-python-v*"
+      - "sdk-python-contexts-v*"
+
+jobs:
+  publish-sdk:
+    name: Publish konstera-sdk to PyPI
+    if: startsWith(github.ref, 'refs/tags/sdk-python-v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # for OIDC trusted publisher
+      contents: write  # for GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tooling
+        run: pip install build
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/sdk-python-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches pyproject.toml
+        working-directory: python
+        run: |
+          PYPROJECT_VERSION=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
+          echo "pyproject.toml: $PYPROJECT_VERSION"
+          echo "tag:            ${{ steps.version.outputs.version }}"
+          if [ "$PYPROJECT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::pyproject.toml version '$PYPROJECT_VERSION' does not match tag 'sdk-python-v${{ steps.version.outputs.version }}'."
+            exit 1
+          fi
+
+      - name: Build sdist + wheel
+        working-directory: python
+        run: python -m build
+
+      - name: Publish to PyPI (OIDC trusted publisher)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python/dist/*
+          generate_release_notes: true
+          body: |
+            Published to PyPI: https://pypi.org/project/konstera-sdk/${{ steps.version.outputs.version }}/
+
+            Install:
+            ```
+            pip install konstera-sdk==${{ steps.version.outputs.version }}
+            ```
+
+  publish-contexts:
+    name: Publish konstera-sdk-contexts to PyPI
+    if: startsWith(github.ref, 'refs/tags/sdk-python-contexts-v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tooling
+        run: pip install build
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/sdk-python-contexts-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches pyproject.toml
+        working-directory: python/konstera-sdk-contexts
+        run: |
+          PYPROJECT_VERSION=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
+          echo "pyproject.toml: $PYPROJECT_VERSION"
+          echo "tag:            ${{ steps.version.outputs.version }}"
+          if [ "$PYPROJECT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::pyproject.toml version '$PYPROJECT_VERSION' does not match tag 'sdk-python-contexts-v${{ steps.version.outputs.version }}'."
+            exit 1
+          fi
+
+      - name: Regenerate from pack JSON (drift check)
+        run: |
+          python scripts/generate_constants.py
+          if ! git diff --exit-code python/konstera-sdk-contexts/src/konstera_sdk_contexts/_generated.py; then
+            echo "::error::Generated Python constants are out of sync with schemas/standard-context-pack-v1.json. Run 'python scripts/generate_constants.py' and commit before tagging."
+            exit 1
+          fi
+
+      - name: Build sdist + wheel
+        working-directory: python/konstera-sdk-contexts
+        run: python -m build
+
+      - name: Publish to PyPI (OIDC trusted publisher)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/konstera-sdk-contexts/dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python/konstera-sdk-contexts/dist/*
+          generate_release_notes: true
+          body: |
+            Published to PyPI: https://pypi.org/project/konstera-sdk-contexts/${{ steps.version.outputs.version }}/
+
+            Install:
+            ```
+            pip install konstera-sdk-contexts==${{ steps.version.outputs.version }}
+            ```

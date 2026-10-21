@@ -1,8 +1,8 @@
 # Konstera SDK — Roadmap
 
-> **Status:** The SDK repo currently ships three published packages (NuGet / PyPI / npm) covering the **Standard Context Pack v1** — typed canonical names only. The full **agent SDK** exists in .NET and Python; the TypeScript equivalent is scaffolded but not yet implemented. This document is the running list of what's left to make the SDK "fully shipped" to agent authors.
+> **Status:** The SDK repo has five packages across three registries, with release pipelines ready to publish on tag push. First publishes are gated on repo-admin registry setup (NuGet API key, PyPI trusted publishers, npm token — see [`RELEASING.md`](./RELEASING.md)). The full **agent SDK** exists in .NET (v0.1.0) and Python (v0.5.0); the TypeScript equivalent is scaffolded but not yet implemented.
 
-Last updated: 2026-10-15.
+Last updated: 2026-10-21.
 
 ## Legend
 
@@ -12,30 +12,33 @@ Last updated: 2026-10-15.
 
 ---
 
-## 1. Package publishing (🟢 Now)
+## 1. Package publishing (🟢 Now — **pipelines ready**, awaiting registry setup)
 
-The source for all three Context-Pack packages is in-tree, builds green, but **none are published to a registry yet**. Agent authors can't `dotnet add package`, `pip install`, or `npm install` until this ships.
+The source for all five packages is in-tree, builds green, release workflows are shipped and awaiting the first tag push. **Blocker: one-time registry setup** (API keys / trusted publishers) — see [`RELEASING.md`](./RELEASING.md).
 
-- [ ] **NuGet publish pipeline** for `Konstera.Sdk.Contexts` + `Konstera.Sdk`
-  - Decide registry: nuget.org public vs private feed (Konstera-managed) — see ADR-036 §B
-  - GitHub Actions workflow: build → test → `dotnet pack` → `dotnet nuget push` on tag `v*.*.*`
-  - Secret: `NUGET_API_KEY`
-- [ ] **PyPI publish pipeline** for `konstera-sdk-contexts` + `konstera-sdk`
-  - `hatch publish` on tag; secret `PYPI_TOKEN`
-  - Trusted-publisher GitHub-OIDC path preferred over long-lived token
-- [ ] **npm publish pipeline** for `konstera-sdk-contexts`
-  - `npm publish --access public --provenance` on tag; secret `NPM_TOKEN`
-  - Scope decision: `@konstera/sdk-contexts` vs bare `konstera-sdk-contexts` (currently bare)
-- [ ] **Semver policy doc** (`docs/semver.md`) — adding names is MINOR, removing/renaming is MAJOR, metadata-only is PATCH
-- [ ] **Release-tag convention** — `sdk-contexts-v1.0.0`, `sdk-dotnet-v0.2.0`, `sdk-python-v0.6.0` to disambiguate across packages
+- [x] **NuGet publish pipeline** for `Konstera.Sdk` + `Konstera.Sdk.Contexts` — [`.github/workflows/release-dotnet.yml`](./.github/workflows/release-dotnet.yml). Tag: `sdk-dotnet-v*` + `sdk-dotnet-contexts-v*`. Secret: `NUGET_API_KEY`.
+- [x] **PyPI publish pipeline** for `konstera-sdk` + `konstera-sdk-contexts` — [`.github/workflows/release-python.yml`](./.github/workflows/release-python.yml). Tag: `sdk-python-v*` + `sdk-python-contexts-v*`. Auth: GitHub OIDC trusted publisher (no long-lived token).
+- [x] **npm publish pipeline** for `konstera-sdk-contexts` — [`.github/workflows/release-typescript.yml`](./.github/workflows/release-typescript.yml). Tag: `sdk-ts-contexts-v*`. Secret: `NPM_TOKEN` (classic token for first publish; migrate to OIDC post-first-publish).
+- [x] **Semver policy** documented in [`RELEASING.md`](./RELEASING.md) + this file §semver below.
+- [x] **Release-tag convention** fixed and documented in [`RELEASING.md`](./RELEASING.md).
+- [ ] **Repo-admin one-time setup** (not code — gates all first publishes):
+  - Create `NUGET_API_KEY` secret
+  - Configure PyPI pending publishers for `konstera-sdk` + `konstera-sdk-contexts`
+  - Create GitHub Environment named `pypi`
+  - Create `NPM_TOKEN` secret
+- [ ] **First publishes** — push the first tags and verify end-to-end:
+  - `sdk-dotnet-v0.1.0`, `sdk-dotnet-contexts-v1.0.0`
+  - `sdk-python-v0.5.0`, `sdk-python-contexts-v1.0.0`
+  - `sdk-ts-contexts-v1.0.0`
 
-## 2. Generator CI gate (🟢 Now)
+## 2. Generator CI gate (🟢 Now — **shipped**)
 
-The generator script (`scripts/generate_constants.py`) is the single-source-of-truth guard, but nothing stops a developer from hand-editing a `.g.cs` and lying about it in review.
+The generator script (`scripts/generate_constants.py`) is the single-source-of-truth guard, enforced by CI.
 
-- [ ] CI job: `python scripts/generate_constants.py && git diff --exit-code` fails the build if any generated file is out of sync with the pack JSON
-- [ ] CI job: schema-shape check — the pack JSON validates against a companion `standard-context-pack-v1.schema.json` (write this file)
-- [ ] CI job: cross-package version lockstep — all three contexts packages must share the same `MAJOR.MINOR` as the pack
+- [x] CI job: `python scripts/generate_constants.py && git diff --exit-code` fails the build if any generated file is out of sync with the pack JSON — [`.github/workflows/sdk-check.yml`](./.github/workflows/sdk-check.yml) `generator-drift` job.
+- [x] Release-time drift gate (defence-in-depth): the release-dotnet / release-python / release-typescript workflows for context packs re-run the generator and fail if drift is detected (prevents a bad tag publishing stale constants even if someone bypassed the PR CI).
+- [ ] Schema-shape check — the pack JSON validates against a companion `standard-context-pack-v1.schema.json` (write this file).
+- [ ] Cross-package version lockstep — all three contexts packages must share the same `MAJOR.MINOR` as the pack.
 
 ## 3. Drift check with platform's vendored copy (🟢 Now)
 

@@ -1,0 +1,83 @@
+name: release-typescript
+
+# Publishes konstera-sdk-contexts to npm.
+#
+# Tag convention (see RELEASING.md):
+#   sdk-ts-contexts-v<X.Y.Z>  -> publishes konstera-sdk-contexts
+#
+# Required secrets (one-time setup, see RELEASING.md):
+#   NPM_TOKEN  — npm classic automation token with publish scope.
+#   (Future: migrate to OIDC trusted publishing after first manual publish.)
+
+on:
+  push:
+    tags:
+      - "sdk-ts-contexts-v*"
+
+jobs:
+  publish-contexts:
+    name: Publish konstera-sdk-contexts to npm
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # for npm --provenance
+      contents: write  # for GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/sdk-ts-contexts-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches package.json
+        working-directory: typescript/packages/konstera-sdk-contexts
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "package.json: $PKG_VERSION"
+          echo "tag:          ${{ steps.version.outputs.version }}"
+          if [ "$PKG_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::package.json version '$PKG_VERSION' does not match tag 'sdk-ts-contexts-v${{ steps.version.outputs.version }}'."
+            exit 1
+          fi
+
+      - name: Regenerate from pack JSON (drift check)
+        run: |
+          python scripts/generate_constants.py
+          if ! git diff --exit-code typescript/packages/konstera-sdk-contexts/src/generated.ts; then
+            echo "::error::Generated TypeScript constants are out of sync with schemas/standard-context-pack-v1.json. Run 'python scripts/generate_constants.py' and commit before tagging."
+            exit 1
+          fi
+
+      - name: Install workspace deps
+        working-directory: typescript
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build
+        working-directory: typescript/packages/konstera-sdk-contexts
+        run: pnpm run build
+
+      - name: Publish to npm (with provenance)
+        working-directory: typescript/packages/konstera-sdk-contexts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            Published to npm: https://www.npmjs.com/package/konstera-sdk-contexts/v/${{ steps.version.outputs.version }}
+
+            Install:
+            ```
+            npm install konstera-sdk-contexts@${{ steps.version.outputs.version }}
+            ```
