@@ -14,7 +14,7 @@ Thirteen phases from idea to retirement. Each one labelled with its current stat
 
 | # | Phase | Status |
 | - | ----- | ------ |
-| 1 | **Pick + scope** — choose the agent, pick the capabilities | Today: browse the capability catalogue in `platform/schemas/`. Planned: catalogue page on konstera.ai and a `catalogue.search` MCP tool. |
+| 1 | **Pick + scope** — choose the agent, pick the capabilities | Today: browse the capability catalogue in `schemas/`. Planned: catalogue page on konstera.ai and a `catalogue.search` MCP tool. |
 | 2 | **Scaffold** — new project from a template | Today: copy a reference agent from `agents/`. Planned: `konstera init agent <name>` CLI + `scaffold.create_agent` MCP tool. |
 | 3 | **Declare dependencies** — manifest `capabilities.needs[]`, `contextRequirements`, `eval.scenarios` | Today: hand-edit `manifest.json` against the published schema. Planned: interactive scaffolder; LLM-friendly validation errors. |
 | 4 | **Write agent code** — orchestration against the SDK | Today: `sdk/python/` and `sdk/dotnet/` ship. [capabilities-and-ontology.md](capabilities-and-ontology.md) covers the pattern. |
@@ -39,7 +39,7 @@ The gaps that bite the hardest in agent-authoring are **phases 5, 6, and 7** —
 Before you write anything, answer three questions:
 
 1. **What business problem does the agent solve?** (Not: what technology does it use?)
-2. **What capabilities does it need to read or write?** Browse the catalogue — current entries live in `platform/schemas/capability-catalog.json`. If a capability you need doesn't exist, see §5 *Common failure modes → missing capability*.
+2. **What capabilities does it need to read or write?** Browse the catalogue — current entries live in `schemas/capability-catalog.json`. If a capability you need doesn't exist, see §5 *Common failure modes → missing capability*.
 3. **What semantic context does it depend on?** Glossary terms? Ontology entities? These go in the manifest's `contextRequirements` so install-time validation catches missing context.
 
 The output of this phase is a one-paragraph brief and a bullet list of capability names. Not code yet.
@@ -113,7 +113,7 @@ The manifest is the install-time contract — portal validates it, operators rea
 - Every `contextRequirements.glossary[]` term must exist in the standard-context-pack or in a tenant-authored add.
 - Every `eval.scenarios[]` has a well-formed input + expected block.
 
-See the full schema at `sdk/schemas/agent-manifest.v3.json`.
+See the full schema at `schemas/agent-manifest.v3.json`.
 
 ### 2.4 Write agent code
 

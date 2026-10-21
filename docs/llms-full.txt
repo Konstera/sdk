@@ -133,7 +133,7 @@ If you need a capability not in this list (e.g. a `customers.lookup_by_email` th
 - Every `eval.scenarios[]` must have well-formed input + expected.
 - `retryPolicy` is optional; defaults shown.
 
-Full schema at `sdk/schemas/agent-manifest.v3.json`.
+Full schema at `schemas/agent-manifest.v3.json`.
 
 ---
 
@@ -413,12 +413,12 @@ Rules:
 
 ## 16. Related references
 
-- `sdk/schemas/agent-manifest.v3.json` — authoritative manifest schema
-- `sdk/schemas/standard-context-pack-v1.json` — standard glossary + ontology
-- `sdk/docs/building-agents/capabilities-and-ontology.md` — long-form SDK guide
-- `sdk/docs/building-agents/end-to-end-journey.md` — full lifecycle
-- `sdk/docs/building-agents/llm-dev-workflows.md` — Konstera CLI × Claude Code CLI etc.
-- `sdk/docs/building-agents/AGENTS.md` — scaffold template
+- `schemas/agent-manifest.v3.json` — authoritative manifest schema
+- `schemas/standard-context-pack-v1.json` — standard glossary + ontology
+- `docs/building-agents/capabilities-and-ontology.md` — long-form SDK guide
+- `docs/building-agents/end-to-end-journey.md` — full lifecycle
+- `docs/building-agents/llm-dev-workflows.md` — Konstera CLI × Claude Code CLI etc.
+- `docs/building-agents/AGENTS.md` — scaffold template
 - `platform/docs/adr/013-agent-capabilities.md` — technical ADR
 - `platform/docs/adr/046-capability-indirection-dx-and-lock-in.md` — strategic framing
 - `wiki/concepts/capability-architecture.md` — complete internal reference

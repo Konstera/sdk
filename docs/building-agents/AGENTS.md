@@ -141,7 +141,7 @@ A fixture is a JSON file in `fixtures/<capability_name>/<scenario>.json`. The lo
 
 **Rules:**
 - The `match` block decides which fixture is returned for a given input. First-match wins.
-- The `response` block must match the capability's canonical response schema. Check the schema at `sdk/schemas/capability-catalog.json` or (planned) via the `catalogue.get_capability` MCP tool.
+- The `response` block must match the capability's canonical response schema. Check the schema at `schemas/capability-catalog.json` or (planned) via the `catalogue.get_capability` MCP tool.
 - One fixture per logically-distinct scenario the agent might encounter — found/not-found, VIP/non-VIP, in-window/out-of-window, etc.
 
 ---
@@ -154,7 +154,7 @@ If you wrote `import shopify` or `import zendesk` or `import netsuite` or any si
 
 ### 2. You invented a plausible capability name
 
-Capability names are not freely choosable. Every name in `capabilities.needs[]` must exist in the global catalogue. If you're not sure a name exists, verify first — either from `sdk/schemas/capability-catalog.json`, or (planned) via the `catalogue.search` MCP tool. If the capability you need genuinely doesn't exist, see pitfall 3.
+Capability names are not freely choosable. Every name in `capabilities.needs[]` must exist in the global catalogue. If you're not sure a name exists, verify first — either from `schemas/capability-catalog.json`, or (planned) via the `catalogue.search` MCP tool. If the capability you need genuinely doesn't exist, see pitfall 3.
 
 ### 3. The capability you need isn't in the catalogue
 
@@ -169,7 +169,7 @@ If your code does `customer["tags"]` or `customer["custom_fields"]` or similar, 
 
 ### 5. Your fixture doesn't match the canonical shape
 
-If `konstera-agent test` reports *"fixture missing required field X"*, your fixture is misaligned with the capability's canonical shape. Load the schema (from `sdk/schemas/capability-catalog.json` or `catalogue.get_capability`) and align.
+If `konstera-agent test` reports *"fixture missing required field X"*, your fixture is misaligned with the capability's canonical shape. Load the schema (from `schemas/capability-catalog.json` or `catalogue.get_capability`) and align.
 
 ### 6. You wrote a scenario without a fixture
 
@@ -198,10 +198,10 @@ Install-time validation requires every capability the agent calls to appear in `
 | Question | Where to look |
 | -------- | ------------- |
 | How does capability indirection work? | `sdk/docs/building-agents/capabilities-and-ontology.md` |
-| What capabilities exist? | `sdk/schemas/capability-catalog.json`, or `catalogue.list_capabilities` (planned MCP tool) |
-| What's the canonical response shape of capability X? | `sdk/schemas/capability-catalog.json`, or `catalogue.get_capability("X")` (planned) |
+| What capabilities exist? | `schemas/capability-catalog.json`, or `catalogue.list_capabilities` (planned MCP tool) |
+| What's the canonical response shape of capability X? | `schemas/capability-catalog.json`, or `catalogue.get_capability("X")` (planned) |
 | How does the end-to-end dev journey work? | `sdk/docs/building-agents/end-to-end-journey.md` |
-| What does the manifest schema allow? | `sdk/schemas/agent-manifest.v3.json` |
+| What does the manifest schema allow? | `schemas/agent-manifest.v3.json` |
 | How do I run and test locally? | `README.md` + §Dev loop above |
 | What's a reference agent I can crib from? | `agents/customer-service-agent/`, `agents/prepayments-agent/`, `agents/hello-world-python/` |
 

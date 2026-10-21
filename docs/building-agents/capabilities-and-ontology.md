@@ -131,7 +131,7 @@ for t in tickets:
     ...
 ```
 
-Capability arguments and response shapes are declared in the catalogue — check `sdk/schemas/capability-catalog.json` or (planned) the `catalogue.get_capability` MCP tool for the exact spec of any capability.
+Capability arguments and response shapes are declared in the catalogue — check `schemas/capability-catalog.json` or (planned) the `catalogue.get_capability` MCP tool for the exact spec of any capability.
 
 ### 3.4 Checking availability before calling an optional capability
 
@@ -481,8 +481,8 @@ Paste this into a chat LLM at the start of a Konstera-agent-build session.
 - **[end-to-end-journey.md](end-to-end-journey.md)** — the 13-phase lifecycle this doc specialises for the code-writing phase.
 - **[llm-dev-workflows.md](llm-dev-workflows.md)** — how to drive this pattern with Claude Code, Cursor, Claude Desktop, and web chat LLMs.
 - **[AGENTS.md](AGENTS.md)** — the scaffold template every new agent project copies in; shorter version of §2 + §10 for in-project reading by LLM dev tools.
-- **`sdk/schemas/capability-catalog.json`** — authoritative list of capabilities + canonical response schemas.
-- **`sdk/schemas/agent-manifest.v3.json`** — manifest validation rules.
+- **`schemas/capability-catalog.json`** — authoritative list of capabilities + canonical response schemas.
+- **`schemas/agent-manifest.v3.json`** — manifest validation rules.
 - **`platform/docs/adr/013-agent-capabilities.md`** — technical ADR behind the pattern.
 - **`platform/docs/adr/046-capability-indirection-dx-and-lock-in.md`** — strategic framing including D2 (escape hatch) and D4 (LLM-ready docs).
 - **`wiki/concepts/capability-architecture.md`** — comprehensive internal reference.
