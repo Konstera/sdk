@@ -2,15 +2,23 @@
  * AgentContext — the object passed to every agent method. Gives the agent access
  * to identity + kernel services without coupling to how those services are wired.
  *
- * v0.2.0: log + llm + state + vector + credentials. Other 10 services (cost,
- * tool, agents, artifact, human, rule, connector, capability, context,
- * semantic) ship in subsequent minor versions as parity with Python.
+ * v0.3.0: full Python parity — 14 services (log, llm, state, vector, credentials,
+ * cost, tool, agents, artifact, human, rule, connector, capability, semantic).
  */
 import { KernelMcpClient } from "./mcp.js";
+import { AgentsService } from "./services/agents.js";
+import { ArtifactService } from "./services/artifact.js";
+import { CapabilityService } from "./services/capability.js";
+import { ConnectorService } from "./services/connector.js";
+import { CostService } from "./services/cost.js";
 import { CredentialsService } from "./services/credentials.js";
+import { HumanService } from "./services/human.js";
 import { LlmService } from "./services/llm.js";
 import { LogService } from "./services/log.js";
+import { RuleService } from "./services/rule.js";
+import { SemanticService } from "./services/semantic.js";
 import { StateService } from "./services/state.js";
+import { ToolService } from "./services/tool.js";
 import { VectorService } from "./services/vector.js";
 
 export interface AgentContext {
@@ -34,6 +42,15 @@ export interface AgentContext {
   readonly state: StateService;
   readonly vector: VectorService;
   readonly credentials: CredentialsService;
+  readonly cost: CostService;
+  readonly tool: ToolService;
+  readonly agents: AgentsService;
+  readonly artifact: ArtifactService;
+  readonly human: HumanService;
+  readonly rule: RuleService;
+  readonly connector: ConnectorService;
+  readonly capability: CapabilityService;
+  readonly semantic: SemanticService;
 }
 
 export interface AgentContextDefaults {
@@ -73,5 +90,14 @@ export function createContext(
     state: new StateService(mcp, instanceId),
     vector: new VectorService(mcp, instanceId),
     credentials: new CredentialsService(mcp, instanceId),
+    cost: new CostService(mcp, instanceId),
+    tool: new ToolService(mcp),
+    agents: new AgentsService(mcp, instanceId),
+    artifact: new ArtifactService(mcp, instanceId),
+    human: new HumanService(mcp, instanceId),
+    rule: new RuleService(mcp, instanceId),
+    connector: new ConnectorService(mcp, instanceId),
+    capability: new CapabilityService(mcp, instanceId),
+    semantic: new SemanticService(mcp, instanceId),
   };
 }
