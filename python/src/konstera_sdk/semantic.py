@@ -15,10 +15,13 @@ Field names are snake_case on the wire so no mapper layer is needed.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 from ._mcp import KernelMcpClient
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True, frozen=True)
@@ -39,7 +42,7 @@ class GlossaryTerm:
     updated_at: str
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "GlossaryTerm":
+    def from_dict(cls, d: dict[str, Any]) -> GlossaryTerm:
         return cls(
             id=str(d["id"]),
             name=str(d["name"]),
@@ -94,7 +97,7 @@ class OntologyEntity:
     updated_at: str
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "OntologyEntity":
+    def from_dict(cls, d: dict[str, Any]) -> OntologyEntity:
         # Kernel ships `properties` as a JSON *string* (OntologyEntityView
         # PropertiesJson in Konstera.Kernel.Context.ContextTypes). Parse
         # here so agent code reads nested shapes directly without a double
@@ -154,7 +157,7 @@ class ClusterPassRate:
     recorded_at: str
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ClusterPassRate":
+    def from_dict(cls, d: dict[str, Any]) -> ClusterPassRate:
         return cls(
             cluster_tag=str(d["cluster_tag"]),
             total=int(d["total"]),
@@ -182,7 +185,7 @@ class Skill:
     steps: list[SkillStep]
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Skill":
+    def from_dict(cls, d: dict[str, Any]) -> Skill:
         return cls(
             id=str(d["id"]),
             name=str(d["name"]),
@@ -340,10 +343,6 @@ class SemanticService:
 
 
 # ─── module-private helpers ──────────────────────────────────────────
-
-import logging  # local import — only this helper needs the logger
-
-_log = logging.getLogger(__name__)
 
 
 def _is_feature_disabled(data: Any, *, method: str) -> bool:

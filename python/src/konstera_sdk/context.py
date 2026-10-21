@@ -26,20 +26,41 @@ from .vector import VectorService
 
 @dataclass(slots=True)
 class AgentContext:
-    """Everything an agent method receives beyond the request itself."""
+    """Identity + kernel services passed to every agent method.
+
+    An agent gets `ctx` as the second argument to `initialize()`, `handle()`,
+    and `shutdown()`. All kernel-side side effects (logging, LLM calls,
+    state writes, vector queries, approvals, etc.) go through properties on
+    this object. The agent never configures transport, auth, or credentials
+    directly — they're resolved kernel-side from the tenant's bindings.
+
+    Example:
+        >>> # Inside handle(req, ctx):
+        >>> await ctx.log.info("processing", input=req.input)
+        >>> result = await ctx.llm.complete(prompt=req.input, purpose="narrator")
+        >>> await ctx.state.set("last_run", {"at": time.time(), "model": result.model})
+        >>> if await ctx.capability.available("tickets.reply"):
+        ...     await ctx.capability.call("tickets.reply", ticket_id="t-1", body=result.content)
+    """
 
     instance_id: str
-    """This agent instance's UUID (as string). Injected by the kernel."""
+    """This agent instance's UUID. Injected by the kernel at container-create
+    time via `KONSTERA_AGENT_INSTANCE_ID`. In direct-run mode defaults to
+    the sentinel `"unknown-instance"`."""
 
     tenant_id: str
-    """The tenant this instance runs under (M8). UUID as string. Injected
-    by the kernel at container-create time via KONSTERA_TENANT_ID."""
+    """The tenant this instance runs under (M8). UUID as string. Injected by
+    the kernel at container-create time via `KONSTERA_TENANT_ID`. Rarely
+    needed directly — the kernel scopes every service call by the caller's
+    instance ID and resolves the tenant server-side."""
 
     agent_id: str
-    """The agent's declared id from its manifest (e.g. `io.konstera.hello-world-python`)."""
+    """The agent's manifest-declared id (e.g. `"io.konstera.hello-world-python"`).
+    Useful in log messages for cross-agent correlation."""
 
     agent_version: str
-    """The agent's declared version (e.g. `0.1.0`)."""
+    """The agent's manifest-declared version (e.g. `"0.5.0"`). Shows up in
+    `/health` + `/describe` responses so operators can verify what's deployed."""
 
     # Kernel services — one property per capability.
     log: LogService
@@ -58,7 +79,7 @@ class AgentContext:
     semantic: SemanticService    # ADR-037 — tenant semantic plane (glossary / skills / ontology)
 
     @classmethod
-    def from_env(cls, mcp: KernelMcpClient, defaults: dict[str, str] | None = None) -> "AgentContext":
+    def from_env(cls, mcp: KernelMcpClient, defaults: dict[str, str] | None = None) -> AgentContext:
         """Build a context from the env vars the kernel injects at
         container-create time. Missing values fall back to unknowns
         rather than raising — an agent should be able to boot in

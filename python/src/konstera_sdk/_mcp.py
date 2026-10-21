@@ -42,7 +42,7 @@ class KernelMcpClient:
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     await session.call_tool(name, args)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("MCP tool call failed: %s", name)
 
     async def call_tool_for_result(self, name: str, args: dict[str, Any]) -> Any:

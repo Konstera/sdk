@@ -12,11 +12,13 @@ on the kernel side; see `AmbientTenantScope.cs`).
 """
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Iterator
 
-_current_invocation: ContextVar[str | None] = ContextVar("konstera_current_invocation", default=None)
+_current_invocation: ContextVar[str | None] = ContextVar(
+    "konstera_current_invocation", default=None
+)
 
 
 def current_invocation_id() -> str | None:

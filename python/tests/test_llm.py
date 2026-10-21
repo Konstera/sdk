@@ -47,7 +47,7 @@ def _llm_response_dict(**overrides: Any) -> dict[str, Any]:
 class TestValidation:
     async def test_requires_purpose_or_model(self):
         llm = LlmService(RecordingMcp(), "inst-1")  # type: ignore[arg-type]
-        with pytest.raises(ValueError, match="purpose.*model"):
+        with pytest.raises(ValueError, match=r"purpose.*model"):
             await llm.complete(prompt="hi")
 
     async def test_accepts_purpose_only(self):

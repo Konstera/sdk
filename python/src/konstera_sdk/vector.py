@@ -55,7 +55,7 @@ class VectorService:
             args["metadataJson"] = json.dumps(metadata, default=str)
         raw = await self._mcp.call_tool_for_result("vector_upsert", args)
         try:
-            return json.loads(raw)["chunkId"]
+            return str(json.loads(raw)["chunkId"])
         except (json.JSONDecodeError, KeyError, TypeError):
             return raw or ""
 

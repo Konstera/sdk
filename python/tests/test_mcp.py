@@ -119,7 +119,7 @@ class TestToolResultText:
             content=[SimpleNamespace(text="[Unbound] Agent has no binding for X")],
             is_error=True,
         )
-        with pytest.raises(RuntimeError, match="Unbound.*binding for X"):
+        with pytest.raises(RuntimeError, match=r"Unbound.*binding for X"):
             tool_result_text("capability_call", result)
 
     def test_handles_camel_case_is_error_variant(self):

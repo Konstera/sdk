@@ -20,3 +20,7 @@
 .idea/
 .DS_Store
 Thumbs.db
+
+# Python coverage DB
+python/.coverage
+python/htmlcov/
