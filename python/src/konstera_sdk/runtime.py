@@ -23,29 +23,21 @@ from .types import AgentRequest, AgentResponse
 logger = logging.getLogger("konstera_sdk.runtime")
 
 
-def run(agent: Agent, port: int = 8080) -> None:
-    """Host `agent` as an HTTP server on `port`. Blocks until SIGTERM/SIGINT.
+def build_app(agent: Agent, ctx: AgentContext) -> Starlette:
+    """Build the Starlette app that hosts `agent` under `ctx`.
 
-    Reads KONSTERA_KERNEL_MCP_URL + KONSTERA_AGENT_* env vars set by the
-    kernel's ContainerAgentHost at container-create time. Runs fine in
-    direct-run mode (env unset) — kernel-callback services become no-ops.
+    Factored out from `run()` so tests can exercise the HTTP surface
+    (/health, /describe, /invoke) with a Starlette TestClient without
+    needing uvicorn in-the-loop. Production callers go through `run()`.
+
+    Routes:
+      - GET  /health   → `{"status": "ok", "agent": ..., "version": ...}`
+      - GET  /describe → agent identity + capabilities (M15: tool list)
+      - POST /invoke   → deserialises body → AgentRequest, runs
+        `agent.handle(req, ctx)` under `enter_invocation(req.invocation_id)`,
+        serialises the response. Exceptions produce HTTP 500 with
+        `{"error": {"type": "...", "message": "..."}}` and are logged.
     """
-    logging.basicConfig(
-        level=os.getenv("KONSTERA_LOG_LEVEL", "INFO"),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
-
-    mcp_url = os.getenv("KONSTERA_KERNEL_MCP_URL")
-    mcp = KernelMcpClient(mcp_url)
-    ctx = AgentContext.from_env(mcp)
-
-    if mcp.enabled:
-        logger.info("Kernel MCP URL: %s", mcp_url)
-    else:
-        logger.warning(
-            "KONSTERA_KERNEL_MCP_URL not set — kernel callbacks disabled (direct-run mode)."
-        )
-
     async def health(_: Request) -> JSONResponse:
         return JSONResponse({"status": "ok", "agent": ctx.agent_id, "version": ctx.agent_version})
 
@@ -89,7 +81,7 @@ def run(agent: Agent, port: int = 8080) -> None:
             with contextlib.suppress(Exception):
                 await agent.shutdown(ctx)
 
-    app = Starlette(
+    return Starlette(
         debug=False,
         routes=[
             Route("/health", health, methods=["GET"]),
@@ -98,6 +90,32 @@ def run(agent: Agent, port: int = 8080) -> None:
         ],
         lifespan=lifespan,
     )
+
+
+def run(agent: Agent, port: int = 8080) -> None:
+    """Host `agent` as an HTTP server on `port`. Blocks until SIGTERM/SIGINT.
+
+    Reads KONSTERA_KERNEL_MCP_URL + KONSTERA_AGENT_* env vars set by the
+    kernel's ContainerAgentHost at container-create time. Runs fine in
+    direct-run mode (env unset) — kernel-callback services become no-ops.
+    """
+    logging.basicConfig(
+        level=os.getenv("KONSTERA_LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+    mcp_url = os.getenv("KONSTERA_KERNEL_MCP_URL")
+    mcp = KernelMcpClient(mcp_url)
+    ctx = AgentContext.from_env(mcp)
+
+    if mcp.enabled:
+        logger.info("Kernel MCP URL: %s", mcp_url)
+    else:
+        logger.warning(
+            "KONSTERA_KERNEL_MCP_URL not set — kernel callbacks disabled (direct-run mode)."
+        )
+
+    app = build_app(agent, ctx)
 
     # Uvicorn manages the SIGINT/SIGTERM handling; nothing extra to wire here.
     # `access_log=False` — the kernel's invocation record is the audit trail;
@@ -115,7 +133,7 @@ def _serialize_response(resp: AgentResponse) -> dict[str, Any]:
     }
 
 
-__all__ = ["run"]
+__all__ = ["run", "build_app"]
 
 # Signal handling note: uvicorn.run() installs its own SIGTERM/SIGINT handlers
 # and drives the lifespan protocol on shutdown. We deliberately don't add our
