@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://konstera.io/schemas/standard-context-pack/v1.json",
+  "title": "Konstera Standard Context Pack v1",
+  "description": "The canonical vocabulary of context names (glossary terms, skills, ontology entities) that every Konstera-managed seed pack guarantees. Third-party agents declare contextRequirements against these names knowing a tenant that forked the retail-core (or future) seed will have them. The SDK packages (Konstera.Sdk.Contexts NuGet + konstera_sdk_contexts PyPI) emit these names as typed constants so agent authors catch typos at build time, not at install.",
+  "version": "v1",
+  "generated_from": null,
+  "generated_at": "2026-10-14",
+  "glossary": {
+    "refund_window_days": {
+      "domain": "cs",
+      "canonical_unit": "days",
+      "description": "Number of days from delivery during which a return is accepted at full value under the standard policy."
+    },
+    "vip_tier_exception": {
+      "domain": "cs",
+      "canonical_unit": null,
+      "description": "Policy clause that extends refund_window_days for customers in a VIP tier and may waive restocking_fee."
+    },
+    "limited_edition_restocking_fee": {
+      "domain": "cs",
+      "canonical_unit": "percent",
+      "description": "Percentage deducted from refund_amount when the returned SKU is limited_edition. Default 15%."
+    },
+    "chargeback_filed": {
+      "domain": "cs",
+      "canonical_unit": null,
+      "description": "Boolean on a ticket indicating the customer has initiated a chargeback dispute with their card issuer. Blocks the refund path."
+    },
+    "return_reason_code": {
+      "domain": "cs",
+      "canonical_unit": null,
+      "description": "Enum reason the customer gave for the return: size | changed_mind | wrong_item | not_as_described | damaged | quality | late_delivery | other."
+    },
+    "fulfilment_status": {
+      "domain": "cs",
+      "canonical_unit": null,
+      "description": "Current state of an order_line in the pick-pack-ship-deliver lifecycle: pending | picked | packed | shipped | out_for_delivery | delivered | failed."
+    },
+    "csat": {
+      "domain": "cs",
+      "canonical_unit": "ratio",
+      "description": "Customer satisfaction score, 1-5, captured post-ticket."
+    },
+    "fcr": {
+      "domain": "cs",
+      "canonical_unit": "ratio",
+      "description": "First-contact resolution rate — share of tickets resolved on the first customer interaction."
+    },
+    "aht": {
+      "domain": "cs",
+      "canonical_unit": "seconds",
+      "description": "Average handle time per ticket, including hold + after-call work."
+    },
+    "deflection_rate": {
+      "domain": "cs",
+      "canonical_unit": "ratio",
+      "description": "Share of inquiries resolved without human agent contact. Measures self-service effectiveness."
+    },
+
+    "markdown_rate": {
+      "domain": "merch",
+      "canonical_unit": "ratio",
+      "description": "realised-markdown-dollars ÷ gross-sales-dollars. The canonical merchandising KPI for discount depth."
+    },
+    "sell_through": {
+      "domain": "merch",
+      "canonical_unit": "ratio",
+      "description": "Units sold ÷ units received, measured over a season or window."
+    },
+    "gmroi": {
+      "domain": "merch",
+      "canonical_unit": "ratio",
+      "description": "Gross margin return on inventory investment — gross margin ÷ average inventory cost."
+    },
+    "promo_cannibalisation": {
+      "domain": "merch",
+      "canonical_unit": null,
+      "description": "Degree to which a promotional discount shifts sales within the catalog without generating incremental revenue."
+    },
+    "otb": {
+      "domain": "merch",
+      "canonical_unit": "currency",
+      "description": "Open-to-buy — planned receipts budget available for the balance of a period."
+    },
+    "safety_stock": {
+      "domain": "supply_chain",
+      "canonical_unit": "units",
+      "description": "Buffer inventory held to cover demand variability + supplier lead-time variance."
+    },
+    "days_cover": {
+      "domain": "supply_chain",
+      "canonical_unit": "days",
+      "description": "Number of days of expected sell-through covered by current on-hand inventory."
+    },
+    "delivery_sla": {
+      "domain": "supply_chain",
+      "canonical_unit": "days",
+      "description": "Contracted delivery service-level agreement — ship-to-doorstep in days by delivery_tier."
+    },
+
+    "vip_tier": {
+      "domain": "general",
+      "canonical_unit": null,
+      "description": "Loyalty tier assigned to a customer: silver | gold | platinum, with escalating policy exceptions."
+    },
+    "ltv": {
+      "domain": "general",
+      "canonical_unit": "currency",
+      "description": "Customer lifetime value — predicted total revenue a customer generates over their relationship."
+    },
+    "cac": {
+      "domain": "general",
+      "canonical_unit": "currency",
+      "description": "Customer acquisition cost — blended cost to acquire a new paying customer."
+    },
+
+    "revenue": {
+      "domain": "finance",
+      "canonical_unit": "currency",
+      "description": "GAAP revenue excluding returns, net of discounts. The authoritative top-line figure."
+    },
+    "gross_margin": {
+      "domain": "finance",
+      "canonical_unit": "ratio",
+      "description": "(Revenue - COGS) ÷ Revenue."
+    },
+    "cogs": {
+      "domain": "finance",
+      "canonical_unit": "currency",
+      "description": "Cost of goods sold — landed cost of the units that generated the revenue in the period."
+    }
+  },
+
+  "skills": {
+    "evaluate_refund_eligibility": {
+      "domain": "cs",
+      "description": "Deterministic 6-step playbook for refund-eligibility decisioning: enrichment → window check (with VIP exception) → limited-edition fee + chargeback escalation → refund_amount compute → approve-with-confidence. Shipped reference implementation on the customer-service-agent."
+    },
+    "diagnose_markdown_spike": {
+      "domain": "merch",
+      "description": "Four-step playbook for markdown-rate spike diagnosis: seasonality → competitor pricing → stock aging → promo cannibalisation. M14 pilot (Scenario 1 of ADR-037)."
+    }
+  },
+
+  "ontology_entities": {
+    "customer":          { "entity_type": "customer", "description": "A person or organisation with a persistent identity in the tenant's commerce system." },
+    "order":             { "entity_type": "order",    "description": "A customer's purchase, composed of one or more order_line entities." },
+    "order_line":        { "entity_type": "order",    "description": "One SKU + quantity within an order; the finest refund + fulfilment granularity." },
+    "fulfilment":        { "entity_type": "order",    "description": "The physical act of picking + packing + shipping an order_line." },
+    "return":            { "entity_type": "order",    "description": "A customer-initiated reversal of a delivered order_line." },
+    "refund":            { "entity_type": "order",    "description": "The money motion back to the customer following an approved return." },
+    "sku":               { "entity_type": "product",  "description": "Stock keeping unit — the finest sellable product variant." },
+    "product":           { "entity_type": "product",  "description": "A parent product grouping one-or-more SKU variants (size, colour)." },
+    "variant":           { "entity_type": "product",  "description": "A specific size/colour/material combination of a product; typically a 1:1 with SKU." },
+    "category":          { "entity_type": "product",  "description": "A taxonomic grouping of products (menswear → outerwear → jackets)." },
+    "brand":             { "entity_type": "product",  "description": "A product's brand of record — own-brand or licensed/third-party." },
+    "season":            { "entity_type": "product",  "description": "The merchandising season (SS26, AW25) a product collection belongs to." },
+    "collection":        { "entity_type": "product",  "description": "A product grouping curated by the merchandising team — e.g. 'Linen 2026'." },
+    "supplier":          { "entity_type": "supplier", "description": "A vendor the business places purchase orders against." },
+    "purchase_order":    { "entity_type": "supplier", "description": "Konstera's record of goods on order from a supplier." },
+    "shipment":          { "entity_type": "supplier", "description": "An inbound shipment of purchased goods from a supplier." },
+    "stock_on_hand":     { "entity_type": "metric",   "description": "Current on-hand inventory in units, by SKU × location." },
+    "available_to_promise": { "entity_type": "metric", "description": "On-hand + inbound - allocated inventory; the committable quantity." },
+    "ticket":            { "entity_type": "customer", "description": "A customer-service inquiry recorded in the ticketing system." },
+    "chargeback":        { "entity_type": "customer", "description": "A card-issuer-initiated dispute against a settled transaction." },
+    "vip_tier_level":    { "entity_type": "dimension","description": "Named loyalty tier (silver / gold / platinum) attached to a customer." },
+    "channel":           { "entity_type": "dimension","description": "The sales channel for an order: web / mobile / store / marketplace / wholesale." },
+    "region":            { "entity_type": "dimension","description": "A geographic region used for merchandising + reporting splits." },
+    "store":             { "entity_type": "dimension","description": "A physical retail location." }
+  }
+}

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "konstera-sdk-contexts"
+version = "1.0.0"
+description = "Typed constants for the Konstera Standard Context Pack v1 — canonical glossary / skill / ontology-entity names. Reference ContextTerms.REFUND_WINDOW_DAYS instead of magic strings so typos fail at import time, not install."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Konstera", email = "hello@konstera.example" }]
+requires-python = ">=3.11"
+keywords = ["konstera", "agents", "context", "mcp", "retail"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.7",
+]
+
+[project.urls]
+Homepage = "https://konstera.example"
+Documentation = "https://konstera.example/docs/sdk-python"
+Repository = "https://github.com/Konstera/sdk"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/konstera_sdk_contexts"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"../../schemas/standard-context-pack-v1.json" = "konstera_sdk_contexts/schemas/standard-context-pack-v1.json"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
