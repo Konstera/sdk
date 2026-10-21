@@ -1,0 +1,70 @@
+name: sdk-check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  generator-drift:
+    name: Standard Context Pack generator drift gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Regenerate constants from standard-context-pack-v1.json
+        run: python scripts/generate_constants.py
+      - name: Fail if generated files are out of sync with the pack JSON
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated files are out of sync with schemas/standard-context-pack-v1.json."
+            echo "Run 'python scripts/generate_constants.py' locally and commit the result."
+            exit 1
+          fi
+
+  python-build:
+    name: Python SDK build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install konstera-sdk (editable)
+        run: pip install -e python
+      - name: Install konstera-sdk-contexts (editable)
+        run: pip install -e python/konstera-sdk-contexts
+
+  dotnet-build:
+    name: .NET SDK build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build Konstera.Sdk
+        run: dotnet build dotnet/src/Konstera.Sdk/Konstera.Sdk.csproj
+      - name: Build Konstera.Sdk.Contexts
+        run: dotnet build dotnet/src/Konstera.Sdk.Contexts/Konstera.Sdk.Contexts.csproj
+
+  typescript-build:
+    name: TypeScript SDK build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+      - name: Install workspace deps
+        working-directory: typescript
+        run: pnpm install --frozen-lockfile=false
+      - name: Build konstera-sdk-contexts
+        working-directory: typescript/packages/konstera-sdk-contexts
+        run: pnpm run build
