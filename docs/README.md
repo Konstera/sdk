@@ -1,33 +1,25 @@
-# Konstera public developer docs
+# Konstera developer docs
 
-> **Status: Phase 1 scope.** Getting-started path lands with SDK v0.1 (target: 2026-10-16).
+Public documentation for developers who build agents to run on Konstera.
 
-These docs are the public developer-facing documentation for agent authors. They ship with `konstera-sdk` when the public repo splits out.
+**Audience:** agent authors. Not platform engineers, and not operators who install Konstera.
 
-**Audience:** developers writing agents to run on Konstera. **Not** platform engineers, **not** operators installing Konstera — those readers are served by `konstera-platform/docs/` (internal) and `konstera-deploy/docs/` (future repo) respectively.
+## Pages
 
-## Planned pages (Phase 1)
+| Page | What it covers |
+|---|---|
+| [Getting started](getting-started.md) | Write a Python agent, build the image, write and validate a manifest, upload, deploy, bind, test, and see a draft in the Inbox. |
+| [Manifest reference](manifest-reference.md) | Every section of `agent-manifest.v3.json`, with examples and where each shows up in the portal. |
+| [Agent FAQ](faq-agents.md) | Common questions: LLM and capability calls, Inbox buttons, decisions, context panels, versions, testing, data. |
+| [Review actions demo](examples/review-actions-demo/) | A demo agent (made-up data) that uses every Inbox action type. |
 
-- `getting-started.md` — install SDK, scaffold agent, build + run manually (CLI docs land Phase 2)
-- `concepts.md` — what an agent is, how invocations work, kernel services (MCP), tenants
-- `sdk-reference-dotnet.md` — `IAgent`, `AgentContext`, kernel service clients
+The manifest schema is [`schemas/agent-manifest.v3.json`](../schemas/agent-manifest.v3.json).
+
+## Planned pages
+
+- `concepts.md` — what an agent is, how invocations work, platform services (MCP), tenants
+- `sdk-reference-dotnet.md` — `Agent`, `AgentContext`, platform service clients
 - `sdk-reference-python.md` — same, Pythonic surface
-- `manifest-reference.md` — annotated walk-through of `agent-manifest.v3.json`
-- `mcp-callbacks.md` — what the kernel exposes (`llm`, `vector`, `state`, `credentials`, `cost`, `log`, `tool`, `agents`, `human`, `prompt`)
-
-## Planned pages (Phase 2+)
-
-- `cli-reference.md` — auto-generated from CLI command definitions
-- `local-dev.md` — the `konstera dev` loop
-- `cli-sdk-compatibility.md` — which CLI version supports which SDK version
-
-## Planned pages (Phase 3+)
-
-- `eval-guide.md` — writing eval cases, LLM-as-judge, regression testing
-- `ci-cd.md` — using the GH Actions + ADO templates in `sdk/ci-templates/`
-- `cookbook/` — recipes per common pattern (RAG, HiL, scheduled, webhook, multi-agent)
-
-## Related
-
-- [ADR-035](../../docs/adr/035-public-developer-stack-and-repo-topology.md) — public developer stack decisions
-- [Developer-stack roadmap](../../docs/roadmap/developer-stack-2026Q4-Q1.md) — delivery phases
+- `mcp-callbacks.md` — what the platform exposes over MCP (`llm`, `vector`, `state`, `credentials`, `cost`, `log`, `tool`, `agents`, `human`, `capability`, …)
+- `cli-reference.md`, `local-dev.md`, `cli-sdk-compatibility.md` — once the CLI ships
+- `eval-guide.md`, `ci-cd.md`, `cookbook/` — later

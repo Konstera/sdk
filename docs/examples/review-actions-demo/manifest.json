@@ -1,0 +1,53 @@
+{
+  "$schema": "https://konstera.io/schemas/agent-manifest/v3.json",
+  "manifestVersion": 3,
+  "id": "io.konstera.local.review-actions-demo",
+  "name": "Review Actions Demo (local test)",
+  "version": "0.1.0",
+  "description": "LOCAL TEST ONLY. Drafts canned replies into the Inbox so a reviewer can try every action type (agent, webhook, api, email) and watch the success/failure outcomes land in Quality & value and Reports. No LLM, no real customers.",
+  "icon": "🧪",
+  "license": "MIT",
+  "groupName": "Local test",
+  "author": { "name": "Konstera (local test)", "email": "hello@konstera.example" },
+
+  "runtime": {
+    "kind": "container",
+    "image": "konstera/review-actions-demo:0.1.0",
+    "port": 8080,
+    "healthPath": "/health",
+    "timeoutSeconds": 30
+  },
+
+  "kernelServices": {
+    "required": ["log", "state", "capability"]
+  },
+
+  "capabilities": {
+    "needs": [
+      { "name": "email.send", "reason": "The Email team button sends through this; leave unbound to see a failed dispatch with Retry", "required": false }
+    ]
+  },
+
+  "reviewActions": [
+    { "key": "approve", "label": "Approve & send the draft as it is", "shortLabel": "Send", "kind": "positive", "icon": "send" },
+    { "key": "edit_and_send", "label": "Edit the draft, then send", "shortLabel": "Edit", "kind": "positive", "icon": "edit",
+      "requiresInput": [{ "field": "revised_reply", "type": "string", "label": "Revised reply" }] },
+    { "key": "regenerate", "label": "Ask the agent for a new draft, with a note", "shortLabel": "Redraft", "kind": "neutral", "icon": "refresh",
+      "reasonRequired": true },
+    { "key": "reject", "label": "Reject — do not send", "shortLabel": "Reject", "kind": "negative", "icon": "x" },
+    { "key": "escalate", "label": "Escalate to Tier 2 through the escalation webhook", "shortLabel": "Escalate", "kind": "neutral",
+      "icon": "escalate", "actionType": "webhook", "target": "escalation",
+      "confirm": "Escalate this ticket to Tier 2?",
+      "requiresInput": [{ "field": "reason", "type": "string", "label": "Why escalate?" }],
+      "payload": { "approval": "{{ approval.id }}", "subject": "{{ thread.subject }}", "customer": "{{ detail.to }}",
+                   "draft": "{{ draft.content }}", "reason": "{{ inputs.reason }}", "by": "{{ reviewer.id }}" } },
+    { "key": "open_case", "label": "Open a case in the case API (POST /cases)", "shortLabel": "Open case", "kind": "positive",
+      "icon": "api", "actionType": "api", "target": "case_api",
+      "payload": { "title": "{{ thread.subject }}", "customer": "{{ detail.to }}", "summary": "{{ draft.content }}", "source": "konstera-demo" } },
+    { "key": "email_team", "label": "Email the draft to the support team lead", "shortLabel": "Email team", "kind": "neutral",
+      "icon": "mail", "actionType": "email", "target": "team_mail",
+      "payload": { "to": "team-lead@example.test", "subject": "FYI: {{ thread.subject }}", "body": "{{ draft.content }}" } }
+  ],
+
+  "permissions": { "network": [], "filesystem": "none", "callableAgents": [] }
+}
