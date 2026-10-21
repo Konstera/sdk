@@ -57,8 +57,33 @@ class ArtifactListItem:
 
 
 class ArtifactService:
-    """Kernel artifact-store client. All methods use the agent's own instance ID
-    where an uploader is required."""
+    """Content-addressed blob store with per-upload provenance.
+
+    Deduplication: same content uploaded twice by the same tenant produces
+    the same sha256, so storage is shared. Each upload still gets its own
+    metadata row — the audit trail is complete even when storage is deduped.
+
+    Use for:
+    - Draft artefacts an agent produces before human approval (PDF invoice,
+      email body with attachments)
+    - Captured external data (screenshots, pulled files) retained for audit
+    - Any binary blob too large to live in `state` (which is JSON-only)
+
+    Content is base64-encoded over MCP (JSON-RPC can't carry raw binary).
+    Expected size range: tens of KB to ~25 MB. Streaming for larger files
+    is a later concern.
+
+    Example:
+        >>> # Upload a generated PDF
+        >>> pdf_bytes = render_invoice(order)
+        >>> result = await ctx.artifact.put(
+        ...     pdf_bytes,
+        ...     content_type="application/pdf",
+        ...     metadata={"order_id": order.id, "doc_type": "invoice"},
+        ... )
+        >>> # Reference by sha256 in downstream workflows
+        >>> await ctx.state.set(f"invoice:{order.id}", {"sha256": result.sha256})
+    """
 
     def __init__(self, mcp: KernelMcpClient, instance_id: str):
         self._mcp = mcp
@@ -72,8 +97,31 @@ class ArtifactService:
         invocation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> PutResult:
-        """Upload a blob. Returns the sha256 + storage URI + whether the content
-        was already present (dedup=True)."""
+        """Upload a blob.
+
+        Args:
+            content: Raw bytes. Any size supported, but under ~25 MB
+                recommended for the current base64-over-MCP transport.
+            content_type: MIME type. Used by `get()` and in portal preview.
+            invocation_id: Override for the ambient invocation ID (rarely
+                needed — invocation context auto-fills).
+            metadata: Arbitrary JSON-serialisable key/value pairs stored
+                with the upload row for provenance.
+
+        Returns:
+            `PutResult` with `artifact_id`, `sha256`, `size_bytes`,
+            `content_type`, `storage_uri`, and `dedup` (True if the content
+            already existed in storage; the metadata row is still unique).
+
+        Example:
+            >>> result = await ctx.artifact.put(
+            ...     pdf_bytes,
+            ...     content_type="application/pdf",
+            ...     metadata={"source": "quote-generator", "order_id": "o-1"},
+            ... )
+            >>> if result.dedup:
+            ...     await ctx.log.info("artifact dedup hit", sha256=result.sha256)
+        """
         args: dict[str, Any] = {
             "instanceId": self._instance,
             "contentBase64": base64.b64encode(content).decode("ascii"),
@@ -96,7 +144,18 @@ class ArtifactService:
         )
 
     async def get(self, sha256: str) -> GetResult:
-        """Download an artifact by sha256. Raises if not found."""
+        """Download an artifact.
+
+        Args:
+            sha256: The hash from a prior `PutResult.sha256`.
+
+        Returns:
+            `GetResult` with `content` (bytes, base64-decoded from the wire),
+            `content_type`, `size_bytes`, `sha256`.
+
+        Raises:
+            RuntimeError: If no artifact matches the sha256.
+        """
         raw = await self._mcp.call_tool_for_result(
             "artifact_get",
             {"callerInstanceId": self._instance, "sha256": sha256},
@@ -110,7 +169,20 @@ class ArtifactService:
         )
 
     async def head(self, sha256: str) -> HeadResult:
-        """Cheap 'does it exist / how big is it' probe. Never raises for missing."""
+        """Probe for an artifact without downloading content.
+
+        Args:
+            sha256: The hash to probe.
+
+        Returns:
+            `HeadResult` with `exists` (bool), `sha256`, optional `size_bytes`
+            and `content_type` (populated when `exists=True`). Never raises
+            for a missing artifact — just returns `exists=False`.
+
+        Example:
+            >>> if (await ctx.artifact.head(hash)).exists:
+            ...     result = await ctx.artifact.get(hash)
+        """
         raw = await self._mcp.call_tool_for_result(
             "artifact_head",
             {"callerInstanceId": self._instance, "sha256": sha256},
@@ -126,8 +198,22 @@ class ArtifactService:
     async def list_by_uploader(
         self, *, uploader_instance_id: str | None = None, limit: int = 50
     ) -> list[ArtifactListItem]:
-        """List artifacts uploaded by an agent instance, most recent first.
-        Defaults to this agent's own uploads."""
+        """List artifacts uploaded by an agent instance.
+
+        Args:
+            uploader_instance_id: Filter to a specific instance. `None`
+                defaults to this agent's own uploads.
+            limit: Max rows returned. Default 50.
+
+        Returns:
+            `list[ArtifactListItem]` sorted most-recent-first.
+
+        Example:
+            >>> # Review this agent's recent uploads
+            >>> items = await ctx.artifact.list_by_uploader(limit=10)
+            >>> for it in items:
+            ...     print(f"{it.uploaded_at} {it.content_type} {it.sha256}")
+        """
         raw = await self._mcp.call_tool_for_result(
             "artifact_list_by_uploader",
             {

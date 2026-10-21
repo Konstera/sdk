@@ -90,14 +90,49 @@ class HumanService:
     ) -> HumanDecision:
         """Submit an approval request.
 
-        If `tier` is T0/T2/T3 kernel resolves synchronously — result comes
-        back already decided. If T1, result is pending; pass `wait_seconds`
-        (1-60) to poll for a decision before returning, or accept the
-        pending state and check back later with `get(approval_id)`.
+        Args:
+            kind: Short label for the approval kind, e.g. `"post-bc-journal"`,
+                `"customer-refund"`, `"draft-reply"`. Shown in the reviewer
+                inbox for routing + searchability.
+            tier: One of `"T0"` (kernel blocks at submission), `"T1"` (sits
+                pending until a human acts), `"T2"` (auto-staged, kernel
+                approves immediately with audit trail), `"T3"` (straight-through,
+                auto-approve on mature whitelisted rules).
+            summary: One-line human-readable summary. Reviewer sees this at
+                the top of the inbox row.
+            detail: Structured payload rendered as the reviewer's "what
+                exactly am I approving" view. Any JSON-serialisable shape.
+            options: Allowed decision options (default: `["approve", "reject"]`).
+                Pass `["approve", "reject", "rework"]` to let the reviewer
+                request changes.
+            submitter_role: Role on behalf of which the agent is submitting
+                (for SoD enforcement — M8 segregation of duties).
+            invocation_id: Override for the ambient invocation ID.
+            wait_seconds: Client-side poll duration, 1-60. Only useful for
+                `tier="T1"`. If `None` and tier is T1, returns the pending
+                decision immediately; call `wait()` or `get()` later.
+            parent_approval_id: Links a redraft to the approval it replaces
+                (ADR-027). When a reviewer rejects an approval and the agent
+                re-submits a revised version, pass the first `approval_id`
+                here so the kernel treats both as one draft chain.
 
-        `parent_approval_id` links a redraft to the approval it replaces, so
-        the kernel can treat both as one draft chain (ADR-027). Omitted from
-        the call when None.
+        Returns:
+            `HumanDecision` snapshot. For T0 → `status="blocked"`. For T2/T3
+            → `status="approved"`. For T1 → `status="pending"` (or the final
+            state if `wait_seconds` polling resolved it).
+
+        Example:
+            >>> # Draft reply workflow: synchronous T1 with wait
+            >>> decision = await ctx.human.request(
+            ...     kind="draft-reply",
+            ...     tier="T1",
+            ...     summary=f"Draft reply to ticket {ticket_id}",
+            ...     detail={"ticket_id": ticket_id, "body": draft},
+            ...     options=["approve", "reject", "rework"],
+            ...     wait_seconds=30,
+            ... )
+            >>> if decision.is_approved:
+            ...     await ctx.capability.call("tickets.reply", id=ticket_id, body=draft)
         """
         args: dict[str, Any] = {
             "instanceId": self._instance,
@@ -125,7 +160,22 @@ class HumanService:
         return decision
 
     async def get(self, approval_id: str) -> HumanDecision:
-        """Fetch the current state of an approval."""
+        """Fetch the current state of an approval.
+
+        Args:
+            approval_id: UUID from a prior `request()` return value.
+
+        Returns:
+            Current `HumanDecision` snapshot. Check `is_resolved` to know
+            whether a human has acted.
+
+        Example:
+            >>> # Later invocation picks up a pending approval
+            >>> approval_id = await ctx.state.get("pending-refund-approval")
+            >>> decision = await ctx.human.get(approval_id)
+            >>> if decision.is_resolved and decision.is_approved:
+            ...     await process_refund(order_id)
+        """
         raw = await self._mcp.call_tool_for_result(
             "human_get",
             {"callerInstanceId": self._instance, "approvalId": approval_id},
@@ -133,8 +183,22 @@ class HumanService:
         return self._parse(raw)
 
     async def wait(self, approval_id: str, *, timeout_seconds: int = 30) -> HumanDecision:
-        """Poll for up to `timeout_seconds` (1-60). Returns as soon as the
-        approval leaves pending, or the still-pending state at timeout."""
+        """Poll for an approval decision.
+
+        Args:
+            approval_id: UUID from a prior `request()` return value.
+            timeout_seconds: Max wait in seconds, 1-60. Default 30.
+
+        Returns:
+            `HumanDecision` as soon as the approval leaves `pending`, or the
+            still-pending state at timeout.
+
+        Example:
+            >>> decision = await ctx.human.wait(approval_id, timeout_seconds=60)
+            >>> if not decision.is_resolved:
+            ...     # Still pending — store the ID and check back next invocation
+            ...     await ctx.state.set("pending-approval", approval_id)
+        """
         raw = await self._mcp.call_tool_for_result(
             "human_wait",
             {
@@ -148,8 +212,27 @@ class HumanService:
     async def list_pending(
         self, *, mine_only: bool = False, limit: int = 50
     ) -> list[HumanDecision]:
-        """List pending approvals in the tenant. If `mine_only`, filter to
-        approvals this agent instance submitted."""
+        """List pending approvals.
+
+        Args:
+            mine_only: If `True`, filter to approvals this agent instance
+                submitted. Default `False` returns all pending in the tenant.
+            limit: Max rows returned. Default 50.
+
+        Returns:
+            `list[HumanDecision]` sorted by submission time, most recent first.
+
+        Example:
+            >>> # Audit: what has this agent asked a human for recently?
+            >>> pending = await ctx.human.list_pending(mine_only=True, limit=10)
+            >>> for p in pending:
+            ...     await ctx.log.info(
+            ...         "awaiting human",
+            ...         approval_id=p.approval_id,
+            ...         kind=p.kind,
+            ...         submitted_at=p.submitted_at,
+            ...     )
+        """
         args: dict[str, Any] = {
             "callerInstanceId": self._instance,
             "limit": limit,
