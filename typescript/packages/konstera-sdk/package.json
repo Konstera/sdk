@@ -1,0 +1,47 @@
+{
+  "name": "konstera-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for building Konstera agents. Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing. Mirror of konstera-sdk (Python) and Konstera.Sdk (.NET).",
+  "license": "BUSL-1.1",
+  "author": "Konstera",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Konstera/sdk.git",
+    "directory": "typescript/packages/konstera-sdk"
+  },
+  "homepage": "https://konstera.ai/docs",
+  "keywords": ["konstera", "agents", "mcp", "ai", "llm"],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node scripts/fixup-exports.mjs",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
