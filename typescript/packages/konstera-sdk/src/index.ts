@@ -21,9 +21,13 @@ export { KernelMcpClient } from "./mcp.js";
 export type { KernelCallResult } from "./mcp.js";
 export { run } from "./runtime.js";
 export type { RunOptions } from "./runtime.js";
+export { CredentialsService } from "./services/credentials.js";
 export { LogService } from "./services/log.js";
 export { LlmService } from "./services/llm.js";
 export type { LlmResult, LlmUsage, LlmCompleteOptions } from "./services/llm.js";
+export { StateService } from "./services/state.js";
+export { VectorService } from "./services/vector.js";
+export type { VectorHit, VectorUpsertOptions, VectorQueryOptions } from "./services/vector.js";
 export type { AgentRequest, AgentResponse } from "./types.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";

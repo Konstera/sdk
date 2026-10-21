@@ -2,13 +2,16 @@
  * AgentContext — the object passed to every agent method. Gives the agent access
  * to identity + kernel services without coupling to how those services are wired.
  *
- * v0.1.0: log + llm services. Other 13 services (state, vector, credentials,
- * cost, tool, agents, artifact, human, rule, connector, capability, context,
- * semantic) ship in v0.2.0.
+ * v0.2.0: log + llm + state + vector + credentials. Other 10 services (cost,
+ * tool, agents, artifact, human, rule, connector, capability, context,
+ * semantic) ship in subsequent minor versions as parity with Python.
  */
 import { KernelMcpClient } from "./mcp.js";
+import { CredentialsService } from "./services/credentials.js";
 import { LlmService } from "./services/llm.js";
 import { LogService } from "./services/log.js";
+import { StateService } from "./services/state.js";
+import { VectorService } from "./services/vector.js";
 
 export interface AgentContext {
   /** This agent instance's UUID (as string). Injected by the kernel. */
@@ -28,6 +31,9 @@ export interface AgentContext {
 
   readonly log: LogService;
   readonly llm: LlmService;
+  readonly state: StateService;
+  readonly vector: VectorService;
+  readonly credentials: CredentialsService;
 }
 
 export interface AgentContextDefaults {
@@ -64,5 +70,8 @@ export function createContext(
     agentVersion,
     log: new LogService(mcp, instanceId),
     llm: new LlmService(mcp, instanceId),
+    state: new StateService(mcp, instanceId),
+    vector: new VectorService(mcp, instanceId),
+    credentials: new CredentialsService(mcp, instanceId),
   };
 }
