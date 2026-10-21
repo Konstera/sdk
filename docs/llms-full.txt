@@ -1,0 +1,425 @@
+# Konstera SDK — full reference for LLM consumption
+
+> This file is designed to be loaded in one shot as `@docs` in Cursor, Claude Code, or any LLM dev tool that accepts a single reference file. It contains the complete context an LLM needs to generate correct Konstera agent code without hallucination. Target size: under 50 KB.
+>
+> **If you are an LLM reading this:** the one pattern that matters most starts in §1. The MVP capability catalogue is in §4 — use these names, do not invent new ones. The ❌/✅ cheat-sheet in §11 is designed to be pattern-matched as you generate code. Prefer calling the Konstera DevX MCP (`catalogue.get_capability`) if available over inferring shapes from this file.
+
+---
+
+## 1. The one pattern
+
+Konstera agents call **capabilities** (business verbs) instead of importing vendor SDKs. The platform resolves each capability to a real vendor API at runtime through a per-tenant binding set by an operator.
+
+```python
+# ✅ The Konstera way — portable across every vendor
+customer = await ctx.capability.call(
+    "customers.lookup_by_email",
+    email=ticket["requester"]["email"],
+)
+if customer["vip_tier"] == "platinum":
+    refund_window_days = 60
+
+# ❌ Training-data prior — DO NOT GENERATE THIS
+import shopify
+customer = shopify.Customer.find(email=ticket["requester"]["email"])
+if "tier:platinum" in customer.tags:
+    refund_window_days = 60
+```
+
+Why: the ✅ version works regardless of which vendor the operator binds. The ❌ version is locked to Shopify forever. See ADR-046 for the strategic framing of this trade; see ADR-013 for the technical spec.
+
+---
+
+## 2. The three abstractions
+
+1. **Capability catalogue** — platform-seeded list of business verbs with canonical response shapes. Lives in platform code; a browsable version is planned. §4 lists the MVP entries.
+2. **Agent manifest** — declares the capabilities the agent needs, the context entries (ontology, glossary) it reads, and the scenarios it must pass. §5 covers the manifest.
+3. **Operator binding** — one row per `(agent_instance, capability)` saying which connection fulfils it. Agents do not name connectors; operators do. See ADR-013 for the three-table design.
+
+The ontology (one layer above capabilities) carries business semantics the agent reasons over: identity strategies, key attributes, enum values. See §6.
+
+---
+
+## 3. Project layout
+
+A Konstera agent project (scaffolded by `konstera-agent init` once that CLI ships; today, by copying a reference agent from `agents/`):
+
+```
+.
+├── manifest.json            ← declares dependencies
+├── skill_runner.py          ← agent business logic (your main edit surface)
+├── fixtures/                ← canonical-shape sample responses for local dev
+│   └── <capability_name>/
+│       └── <scenario>.json
+├── tests/
+│   └── test_scenarios.py    ← runs manifest.eval.scenarios[]
+├── Dockerfile
+├── docker-compose.dev.yml   ← local kernel in stub mode
+├── pyproject.toml           ← Konstera SDK dep: `konstera-sdk`
+├── AGENTS.md                ← LLM-targeted project guide
+├── CLAUDE.md                ← copy of AGENTS.md for Claude Code
+└── README.md
+```
+
+Edit `manifest.json`, `skill_runner.py`, `fixtures/`, `tests/`. Everything else is scaffold.
+
+---
+
+## 4. MVP capability catalogue
+
+These are the capabilities seeded in migration 021 (per ADR-013). Use these names verbatim in `manifest.capabilities.needs[]` and in `ctx.capability.call(...)`. Do not invent new names.
+
+| Capability | Args | Canonical response |
+| ---------- | ---- | ------------------ |
+| `knowledge.search` | `(query, k?)` | `[{title, snippet, url, score}]` |
+| `knowledge.get` | `(id)` | `{id, title, body, url, tags}` |
+| `orders.lookup_by_email` | `(email)` | `[{orderId, status, total, currency, items[], placedAt}]` |
+| `orders.lookup_by_id` | `(orderId)` | `{orderId, status, total, currency, items[], placedAt}` |
+| `orders.list_recent` | `(customerId?, sinceIso?, limit?)` | `[order]` (same shape as above) |
+| `refunds.create` | `(orderId, amount, currency, reason)` | `{refundId, status, amount, currency}` |
+| `tickets.list_new` | `(sinceIso?)` | `[{ticketId, threadId, subject, body, from, to, receivedAt}]` |
+| `tickets.get_by_id` | `(ticketId)` | `{ticketId, threadId, thread: [message], status}` |
+| `tickets.reply` | `(ticketId, body, mode?='reply')` | `{ok, messageId, sentAt}` |
+| `tickets.update_status` | `(ticketId, status)` | `{ok, status}` |
+| `email.send` | `(to, subject, body, headers?)` | `{ok, messageId, sentAt}` |
+
+Status values for `orders`: `open | fulfilled | cancelled | refunded`. For `tickets`: `new | open | pending | resolved | closed`.
+
+If you need a capability not in this list (e.g. a `customers.lookup_by_email` that appears in reference agents and example docs), it is either (a) a proposed addition pending PR, (b) available via a per-connection override on a specific tenant, or (c) requires the direct-SDK escape hatch. See §10.
+
+---
+
+## 5. Manifest schema (abridged)
+
+```jsonc
+{
+  "name": "<agent-name>",
+  "version": "<semver>",
+  "runtime": {
+    "kind": "container",
+    "image": "<registry>/<org>/<agent>:<tag>",
+    "language": "python" | "dotnet" | "typescript"
+  },
+  "capabilities": {
+    "needs": [
+      { "name": "<capability_from_catalogue>", "required": true,  "reason": "<why>" },
+      { "name": "<capability_from_catalogue>", "required": false, "reason": "<why>" }
+    ]
+  },
+  "contextRequirements": {
+    "glossary":  ["<glossary_term>", "..."],
+    "ontology":  ["<ontology_entity>", "..."]
+  },
+  "eval": {
+    "scenarios": [
+      {
+        "id":       "<unique_scenario_id>",
+        "input":    { /* event the agent is invoked with */ },
+        "expected": { /* what the agent should do */ }
+      }
+    ]
+  },
+  "retryPolicy": {
+    "initialIntervalSeconds": 1,
+    "maximumAttempts": 3,
+    "backoffCoefficient": 2.0
+  }
+}
+```
+
+**Validator rules:**
+- Every `capabilities.needs[].name` must exist in the catalogue. Install fails otherwise.
+- Every `contextRequirements.glossary[]` term must exist in the standard context pack or a tenant-authored add.
+- Every `eval.scenarios[]` must have well-formed input + expected.
+- `retryPolicy` is optional; defaults shown.
+
+Full schema at `schemas/agent-manifest.v3.json`.
+
+---
+
+## 6. Reading from the ontology
+
+The ontology holds business semantics — identity strategies, key attributes, enum values. Agents read via `ctx.context.ontology.get(name)`.
+
+```python
+# ✅ Identity strategy — ordered fallback across identifiers
+customer_entity = await ctx.context.ontology.get("customer")
+candidates = [customer_entity.identity.primary, *customer_entity.identity.fallbacks]
+
+customer = None
+for candidate in candidates:
+    value = ticket["requester"].get(candidate.field)
+    if not value:
+        continue
+    customer = await ctx.capability.call(candidate.capability, value=value)
+    if customer:
+        break
+```
+
+```python
+# ✅ Key attributes — read enum values dynamically
+customer_entity = await ctx.context.ontology.get("customer")
+vip_spec = customer_entity.key_attributes["vip_tier"]
+# vip_spec.type == "enum"
+# vip_spec.values == ["silver", "gold", "platinum"]
+```
+
+The ontology is not a universal schema. It does not list vendor-specific fields. For vendor-specific attributes see §9.
+
+---
+
+## 7. Reading from the glossary
+
+Tenant-tunable business values and definitions (policy thresholds, time windows, enumerations). Agents read via `ctx.context.glossary.get(term)`.
+
+```python
+# ✅
+refund_window = await ctx.context.glossary.get("refund_window_days")
+# refund_window.value == 30 (whatever this tenant set)
+# refund_window.type  == "number"
+```
+
+```python
+# ❌ Hard-coding what should be tenant-tunable
+refund_window_days = 30
+```
+
+Glossary terms must be declared in `manifest.contextRequirements.glossary[]` or the read fails.
+
+---
+
+## 8. Writes with idempotency + human-in-the-loop
+
+```python
+# ✅ Mutation with idempotency key (kernel's retry policy is safe)
+await ctx.capability.call(
+    "refunds.create",
+    orderId=order["orderId"],
+    amount=amount,
+    currency=order["currency"],
+    reason="customer_request",
+    idempotency_key=f"refund:{ticket['ticketId']}:{order['orderId']}",
+)
+```
+
+```python
+# ✅ Human-in-the-loop write — kernel sends on approval
+decision = await ctx.human.request(
+    draft={
+        "capability": "tickets.reply",
+        "args": {"ticketId": ticket["ticketId"], "body": draft_body},
+    },
+    policy="require-approval",
+)
+if decision.approved or decision.edited:
+    pass  # kernel already sent
+else:
+    return ctx.escalate(reason="reply_rejected")
+```
+
+The autonomy policy (autonomous / require-review / require-approval) comes from the manifest + operator binding.
+
+---
+
+## 9. Vendor-specific attributes — the `_source` escape
+
+The canonical shape covers business-meaningful fields. Vendor-specific fields are available via `_source` on the normalised response at the cost of portability for that specific read.
+
+```python
+# ✅ Canonical (portable)
+customer["vip_tier"]
+
+# ✅ Vendor-specific (ties this read to Shopify; comment the assumption)
+# NOTE: ties this read to the shopify connector; not portable
+tags = customer["_source"].get("tags", [])
+```
+
+```python
+# ❌ Reading a vendor-specific field as if canonical
+customer["tags"]
+```
+
+---
+
+## 10. The direct-SDK escape hatch
+
+Supported when portability isn't a goal (per ADR-046 D2). Legitimate when: one-system agent that will never be ported, PoC, bridging code until a capability enters the catalogue, or vendor-specific behaviour `_source` can't express.
+
+**You forfeit:** cost attribution, connector rate limiting, PII masking, portability, operator-visible binding.
+
+```python
+# ✅ If you must escape, mark it
+# ESCAPE: direct SDK call — this agent is Shopify-only by design.
+# No canonical capability exists for Shopify tag batch updates.
+import shopify
+shopify_customer = shopify.Customer.find(id=customer["id"])
+```
+
+**Three options when a capability doesn't exist**, in order of preference:
+1. PR against the capability catalogue (right long-term)
+2. `connections.capability_overrides` (per-connection recipe, works today, not shareable across tenants)
+3. Direct-SDK escape above
+
+---
+
+## 11. The complete ❌/✅ cheat-sheet
+
+```python
+# ─── READS ──────────────────────────────────────────────────────────
+
+# ✅  customer = await ctx.capability.call("customers.lookup_by_email", email=email)
+# ❌  import shopify; shopify.Customer.find(email=email)
+
+# ✅  if customer["vip_tier"] == "platinum": ...
+# ❌  if "tier:platinum" in customer.tags: ...
+
+# ✅  for candidate in [primary, *fallbacks]:               # ontology-driven order
+#         value = ticket["requester"].get(candidate.field)
+#         if value: customer = await ctx.capability.call(candidate.capability, value=value)
+#         if customer: break
+# ❌  (customer_by_email() or customer_by_phone() or customer_by_loyalty())
+
+# ✅  if await ctx.capability.available("refunds.create"): ...
+# ❌  await ctx.capability.call("refunds.create", ...)      # fails if unbound
+
+# ─── WRITES ─────────────────────────────────────────────────────────
+
+# ✅  await ctx.capability.call("refunds.create", ..., idempotency_key="refund:tkt_1:ord_7")
+# ❌  await ctx.capability.call("refunds.create", ...)      # retry can duplicate
+
+# ✅  decision = await ctx.human.request(draft=..., policy="require-approval")
+# ❌  await ctx.capability.call("tickets.reply", body=draft_body)  # bypasses reviewer
+
+# ─── CONTEXT ────────────────────────────────────────────────────────
+
+# ✅  entity = await ctx.context.ontology.get("customer")
+# ❌  entity.key_attributes["tags"]                         # vendor-specific; not in ontology
+
+# ✅  window = await ctx.context.glossary.get("refund_window_days")
+# ❌  refund_window = 30                                     # hard-coded; tenant-tunable
+
+# ─── VENDOR-SPECIFIC ────────────────────────────────────────────────
+
+# ✅  tags = customer["_source"].get("tags", [])            # with a vendor-tie comment
+# ❌  tags = customer["tags"]                               # fails on non-Shopify connectors
+
+# ─── ERRORS ─────────────────────────────────────────────────────────
+
+# ✅  except CapabilityError.NotFound: ...                  # named branches
+# ❌  except Exception: ...                                  # eats upstream failures
+
+# ✅  (no retry loop; kernel handles per manifest.retryPolicy)
+# ❌  for attempt in range(3): try: ... except: await asyncio.sleep(2**attempt)
+
+# ─── OBSERVABILITY ──────────────────────────────────────────────────
+
+# ✅  ctx.log.info("customer resolved", customer_id=customer["id"])
+# ❌  print(f"customer resolved: {customer['id']}")
+
+# ─── MANIFEST ───────────────────────────────────────────────────────
+
+# ✅  Every capability called in code is declared in manifest.capabilities.needs[]
+# ❌  Code calls ctx.capability.call("new_capability") without manifest entry
+```
+
+---
+
+## 12. Error taxonomy
+
+```python
+from konstera_sdk import CapabilityError
+
+try:
+    customer = await ctx.capability.call("customers.lookup_by_email", email=email)
+except CapabilityError.NotFound:
+    customer = None
+except CapabilityError.Unbound:
+    return ctx.escalate(reason="capability_unbound")   # should be caught at install
+except CapabilityError.UpstreamFailure as e:
+    return ctx.escalate(reason="upstream_down", detail=e.detail)  # retries exhausted
+except CapabilityError.ResponseShapeInvalid as e:
+    ctx.log.error("response shape invalid", detail=e.detail)
+    return ctx.escalate(reason="shape_invalid")
+```
+
+Do NOT add agent-level retry loops — the kernel handles retries per `manifest.retryPolicy`.
+
+---
+
+## 13. Dev loop commands
+
+```bash
+# Start the local kernel in stub mode (reads from ./fixtures/)
+docker compose -f docker-compose.dev.yml up -d
+
+# Trigger an invocation
+curl -X POST http://localhost:4500/api/agents/<name>/invoke \
+     -d '{"ticket_id": "tkt_001"}'
+
+# Run all scenarios declared in manifest.eval.scenarios[]
+konstera-agent test .          # or: python -m eval_harness ./manifest.json
+
+# Rebuild after code changes
+docker compose -f docker-compose.dev.yml build && \
+  docker compose -f docker-compose.dev.yml up -d
+```
+
+Planned: a single `konstera-agent dev --watch` wraps all of the above.
+
+---
+
+## 14. Fixture file format
+
+Each fixture is a JSON file at `fixtures/<capability_name>/<scenario>.json`. The local kernel's stub-connector mode reads these instead of calling real vendors.
+
+```jsonc
+// fixtures/orders.lookup_by_email/jane_recent_orders.json
+{
+  "match":    { "email": "jane@example.com" },
+  "response": [
+    {
+      "orderId":   "ord_7823456",
+      "status":    "fulfilled",
+      "total":     149.95,
+      "currency":  "USD",
+      "items":     [{ "sku": "SKU-123", "quantity": 1, "price": 149.95 }],
+      "placedAt":  "2026-10-14T14:22:00Z"
+    }
+  ]
+}
+```
+
+Rules:
+- `match` selects fixture by input. First match wins.
+- `response` must match the capability's canonical response schema (see §4).
+- One fixture per logically-distinct scenario the agent might encounter.
+
+---
+
+## 15. Common pitfalls
+
+1. Imported a vendor SDK — see §1
+2. Invented a capability name — see §4
+3. Capability isn't in the catalogue — see §10 (three options)
+4. Read a vendor-specific field as canonical — see §9
+5. Fixture doesn't match canonical shape — align with §4
+6. Scenario references a case no fixture matches — add a fixture or change input
+7. Hard-coded vendor response quirks — the connector's job, not the agent's
+8. Used `requests.get`/`httpx.get` to hit a vendor API — use `ctx.capability.call`
+9. Wrote retry/rate-limiting/auth logic — the kernel does this
+10. Called a capability not declared in the manifest — add the manifest entry
+
+---
+
+## 16. Related references
+
+- `schemas/agent-manifest.v3.json` — authoritative manifest schema
+- `schemas/standard-context-pack-v1.json` — standard glossary + ontology
+- `docs/building-agents/capabilities-and-ontology.md` — long-form SDK guide
+- `docs/building-agents/end-to-end-journey.md` — full lifecycle
+- `docs/building-agents/llm-dev-workflows.md` — Konstera CLI × Claude Code CLI etc.
+- `docs/building-agents/AGENTS.md` — scaffold template
+- `platform/docs/adr/013-agent-capabilities.md` — technical ADR
+- `platform/docs/adr/046-capability-indirection-dx-and-lock-in.md` — strategic framing
+- `wiki/concepts/capability-architecture.md` — complete internal reference
+- `wiki/concepts/ontology.md` — Fragrance Shop scenario walkthrough

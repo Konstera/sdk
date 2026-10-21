@@ -1,0 +1,25 @@
+# Konstera SDK
+
+> Konstera is a platform for AI agents that run inside enterprise systems. Agents ship as OCI containers that speak the Model Context Protocol (MCP), declare their dependencies in a manifest, and are deployed into Konstera tenants that an operator administers. This SDK is for developers building those agents in Python or .NET.
+>
+> **The one pattern.** Konstera agents do not import vendor SDKs. They call business verbs — "capabilities" — like `customers.lookup_by_email` or `tickets.reply`. The platform resolves each capability to a real vendor API at runtime via a per-tenant binding. This is called *capability indirection*. Agent code is identical whether the backing system is Shopify, Commercetools, NetSuite, or SAP; the operator chooses at install time. See ADR-013 for the technical spec and ADR-046 for the strategic framing.
+
+## Core concepts
+
+- [Capabilities and ontology — SDK developer guide](https://konstera.ai/sdk/building-agents/capabilities-and-ontology.md): The hands-on pattern reference. ❌/✅ pairs for every code path (reads, writes, context, ontology, glossary, vendor-specific attributes, errors, observability). Start here before writing any agent code.
+- [AGENTS.md — the scaffold template](https://konstera.ai/sdk/building-agents/AGENTS.md): The LLM-targeted project guide that the SDK ships into every new agent project. Opens with "this file is for the LLM reading this project"; covers project layout, the one pattern you must get right, dev-loop commands, and ten common pitfalls LLMs hit when their training-data priors push them toward `import shopify`.
+- [End-to-end journey](https://konstera.ai/sdk/building-agents/end-to-end-journey.md): The 13-phase lifecycle from pick-and-scope to deprecate, with each phase marked "today" vs "planned tooling". Dedicated section on developer experience by LLM tool category (IDE-integrated, chat+MCP, pure chat).
+- [LLM dev workflows — Konstera CLI × Claude Code CLI and friends](https://konstera.ai/sdk/building-agents/llm-dev-workflows.md): How the Konstera CLI composes with Claude Code, Cursor, Windsurf, Zed, and chat LLMs. Four concrete workflows (scaffold, edit-test-fix, capture-fixtures, debug). Tool-by-tool setup. FAQ answering "will Konstera CLI replace Claude Code" (no — different concerns).
+
+## Reference
+
+- [Agent manifest schema v3](https://konstera.ai/sdk/schemas/agent-manifest.v3.json): The install-time contract — `capabilities.needs[]`, `contextRequirements`, `eval.scenarios`.
+- [Standard context pack v1](https://konstera.ai/sdk/schemas/standard-context-pack-v1.json): Glossary + ontology entries that ship with every tenant.
+
+## Public positioning
+
+- [Agents that outlive your vendor contracts](https://konstera.ai/resources/ontology-and-the-cost-of-change): Six-panel walkthrough of capability indirection for an executive / buyer audience. Includes a `/present` deck-mode variant.
+
+## Dense single-file reference for LLM context loading
+
+- [llms-full.txt](https://konstera.ai/sdk/llms-full.txt): Full SDK reference condensed into one file. Target <50 KB. Load this as `@docs` in Cursor or Claude Code when you want the LLM to have the complete context in one shot.

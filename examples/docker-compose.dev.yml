@@ -1,0 +1,100 @@
+# Konstera agent — local dev stack
+#
+# What this gives you:
+#   - konstera-kernel-stub: a local Konstera kernel in stub mode (reads
+#     fixtures from ./fixtures/ instead of calling real vendor APIs)
+#   - konstera-pg:          Postgres for kernel state (ephemeral)
+#   - agent:                this agent, rebuilt on `docker compose build`
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   curl -X POST http://localhost:4500/api/agents/<name>/invoke -d '{...}'
+#   docker compose -f docker-compose.dev.yml logs -f agent
+#
+# Reset state (fixtures stay; DB wiped):
+#   docker compose -f docker-compose.dev.yml down -v
+#
+# Status (2026-10-17):
+#   Stub-mode kernel is planned (ADR-046 D4 follow-up). This file is
+#   the target shape; the KONSTERA_STUB_MODE flag lands in the next
+#   platform release. Until then, reference agents use ad-hoc fixtures
+#   via their tests/ harnesses — this file documents where the stack
+#   is heading.
+
+services:
+
+  # ────────────────────────── Postgres ──────────────────────────
+  konstera-pg:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER:     konstera
+      POSTGRES_PASSWORD: konstera_local_dev
+      POSTGRES_DB:       konstera
+    ports:
+      - "4506:5432"
+    volumes:
+      - konstera-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U konstera -d konstera"]
+      interval: 2s
+      timeout:  2s
+      retries:  20
+
+  # ─────────────── Konstera kernel (stub mode) ──────────────────
+  konstera-kernel-stub:
+    image: konstera/kernel:dev        # pulls from Konstera's public registry
+    depends_on:
+      konstera-pg:
+        condition: service_healthy
+    environment:
+      # Core kernel config
+      ASPNETCORE_URLS:    "http://+:8080"
+      POSTGRES_HOST:      konstera-pg
+      POSTGRES_PORT:      "5432"
+      POSTGRES_USER:      konstera
+      POSTGRES_PASSWORD:  konstera_local_dev
+      POSTGRES_DB:        konstera
+
+      # Stub-mode flags (planned):
+      #   KONSTERA_STUB_MODE=1       — enable the stub connector layer
+      #   KONSTERA_STUB_FIXTURES=/fixtures  — directory the stub kernel reads
+      #   KONSTERA_STUB_WATCH=1      — hot-reload fixtures on change
+      #   KONSTERA_STUB_EXCEPT=      — comma-separated capability globs to
+      #                                pass through to real connections
+      #                                (e.g. "tickets.*,email.*")
+      KONSTERA_STUB_MODE:     "1"
+      KONSTERA_STUB_FIXTURES: "/fixtures"
+      KONSTERA_STUB_WATCH:    "1"
+      # KONSTERA_STUB_EXCEPT: "tickets.*"
+    ports:
+      - "4500:8080"           # API: /api/agents/<name>/invoke
+      - "4501:8081"           # Portal (if enabled in dev build)
+    volumes:
+      - ./fixtures:/fixtures:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 3s
+      timeout:  2s
+      retries:  30
+
+  # ──────────────────── Your agent image ────────────────────────
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      konstera-kernel-stub:
+        condition: service_healthy
+    environment:
+      # Agents connect to the kernel over MCP. The kernel URL is
+      # auto-populated by the kernel when it spawns an agent in prod;
+      # in dev we set it explicitly.
+      KONSTERA_KERNEL_MCP_URL: "http://konstera-kernel-stub:8080/mcp/kernel"
+
+      # Agent-side knobs you may want:
+      KONSTERA_LOG_LEVEL:  "DEBUG"
+    # No ports — the agent is reached via the kernel's /api/agents/<name>/invoke.
+
+volumes:
+  konstera-pgdata:
+    driver: local
