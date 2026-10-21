@@ -26,17 +26,24 @@ jobs:
           fi
 
   python-build:
-    name: Python SDK build
+    name: Python SDK build + test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install konstera-sdk (editable)
-        run: pip install -e python
+      - name: Install konstera-sdk (editable, with dev extras)
+        run: pip install -e "python[dev]"
       - name: Install konstera-sdk-contexts (editable)
         run: pip install -e python/konstera-sdk-contexts
+      - name: Install test dependencies
+        # pytest-cov is used by the coverage report; starlette provides TestClient
+        # for the integration tests (not pulled in by the SDK's runtime deps).
+        run: pip install pytest-cov httpx
+      - name: Run pytest with coverage
+        working-directory: python
+        run: python -m pytest tests/ --cov=konstera_sdk --cov-report=term --cov-fail-under=95
 
   dotnet-build:
     name: .NET SDK build
