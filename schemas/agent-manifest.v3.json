@@ -100,6 +100,41 @@
       }
     },
 
+    "contextRequirements": {
+      "type": "object",
+      "description": "ADR-038: declare context names (glossary terms, skills, ontology entities) the agent reads at runtime. The install flow cross-references these against the tenant's active Context Service repo; required names block install until present, recommended names warn. Rows written to agent_context_dependencies for the reverse-index view. All sections optional.",
+      "additionalProperties": false,
+      "properties": {
+        "glossary": {
+          "type": "object",
+          "description": "Glossary terms the agent calls ctx.semantic.glossary_lookup on. required: breakage if missing. recommended: graceful degradation.",
+          "additionalProperties": false,
+          "properties": {
+            "required":    { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 64 }, "uniqueItems": true },
+            "recommended": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 64 }, "uniqueItems": true }
+          }
+        },
+        "skills": {
+          "type": "object",
+          "description": "Skills the agent calls ctx.semantic.skills_get on. Required skills block install; recommended ones unlock richer paths when present.",
+          "additionalProperties": false,
+          "properties": {
+            "required":    { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 64 }, "uniqueItems": true },
+            "recommended": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 64 }, "uniqueItems": true }
+          }
+        },
+        "ontologyEntities": {
+          "type": "object",
+          "description": "Named ontology entities the agent reasons about (customer, order, refund, …).",
+          "additionalProperties": false,
+          "properties": {
+            "required":    { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 64 }, "uniqueItems": true },
+            "recommended": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 64 }, "uniqueItems": true }
+          }
+        }
+      }
+    },
+
     "outputSchema": {
       "type": "object",
       "description": "JSON Schema describing what the agent returns in AgentResponse.structured. Drives the dynamic output UI renderer."
@@ -263,6 +298,47 @@
         "required": { "type": "array", "items": { "$ref": "#/$defs/kernelServiceName" } },
         "optional": { "type": "array", "items": { "$ref": "#/$defs/kernelServiceName" } },
         "notes":    { "type": "string" }
+      }
+    },
+
+    "eval": {
+      "type": "object",
+      "description": "ADR-044: evaluation contract. Platform's quality-check harness runs each scenario against this agent, compares the response to the expected result, and reports pass/fail per scenario and per scenario group. Omit the block entirely to opt an agent out of evaluation (fine for one-shot connectors or pure data transforms). Agents that DO opt in make their eval story portable across first- and third-party authorship — the kernel reads this block, no source-code access required.",
+      "additionalProperties": false,
+      "required": ["endpoint", "mode"],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "pattern": "^/[a-z0-9/_-]*$",
+          "description": "HTTP path the harness POSTs each scenario's `input` to. The agent returns a JSON response matching the shape of its scenarios' `expected`. Convention: /eval for a dedicated eval-mode handler that short-circuits side effects; agents that prefer to reuse /invoke may do so."
+        },
+        "mode": {
+          "enum": ["deterministic", "live"],
+          "description": "deterministic — the endpoint promises reproducible outputs for the same input (short-circuited LLM / stubbed connectors); harness uses exact-match comparison. live — the endpoint uses real LLM / real connectors; harness uses fuzzy comparison (LLM-as-judge in future per ADR-044 §5a). deterministic is preferred for nightly runs — cheap, fast, honest."
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 30,
+          "description": "Per-scenario timeout for the eval call."
+        },
+        "scenarios": {
+          "type": "array",
+          "description": "Agent-authored baseline scenarios. Each row is one test case: a question, a pre-resolved input payload, the expected response. The platform's install-time sync writes these into tenant_context_evaluation when the agent is installed on a tenant, scoped to the agent's package id. Tenants can add their own extra scenarios on top via the portal.",
+          "items": {
+            "type": "object",
+            "required": ["id", "question", "expected"],
+            "additionalProperties": false,
+            "properties": {
+              "id":          { "type": "string", "minLength": 1, "maxLength": 200, "description": "Stable identifier within the agent — survives version bumps so trend data stays attached to the same scenario." },
+              "cluster_tag": { "type": "string", "maxLength": 100, "description": "Scenario group tag — e.g. 'standard_refund', 'vip', 'adversarial'. Platform's health verdict groups by this to compute per-group pass rates." },
+              "question":    { "type": "string", "minLength": 1, "maxLength": 500, "description": "Human-readable description of what this scenario tests. Shown in the portal's scenario list." },
+              "input":       { "type": "object", "description": "Pre-resolved input the harness POSTs to `endpoint` (deterministic mode); or payload for a real `/invoke` (live mode)." },
+              "expected":    { "type": "object", "description": "Expected shape of the agent's response. deterministic mode: exact match on these keys. live mode: fuzzy / judge-model comparison." }
+            }
+          }
+        }
       }
     },
 

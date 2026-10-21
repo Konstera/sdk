@@ -1,0 +1,3515 @@
+{
+  "$schema": "https://konstera.ai/schemas/capability-catalog.v1.json",
+  "version": 1,
+  "description": "Canonical Konstera capability catalogue. Edit this file to add/change a capability, then run `platform/scripts/generate-catalog-migration.py` to refresh migration 117. ADR-013.",
+  "capabilities": [
+    {
+      "key": "chat.list_new",
+      "display_name": "List new chat messages",
+      "category": "chat",
+      "description": "Poll a chat channel like an inbox: new messages from people (bot and app posts are skipped), oldest first, shaped like canonical tickets. Fans out across bindings like tickets.list_new; chat.reply goes to a single binding. Implementers: Slack, Microsoft Teams.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1
+          },
+          "sinceIso": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only messages posted after this time; default: last 24 hours"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "ticketId",
+            "threadId",
+            "body",
+            "receivedAt"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Link to the message in the chat app"
+            },
+            "body": {
+              "type": "string"
+            },
+            "from": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Sender display name (falls back to the user ID)"
+            },
+            "fromId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Sender user ID"
+            },
+            "status": {
+              "type": "string"
+            },
+            "channel": {
+              "type": "string"
+            },
+            "subject": {
+              "type": "string",
+              "description": "First line of the message"
+            },
+            "fromName": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "threadId": {
+              "type": "string",
+              "description": "Pass to chat.reply to answer in the thread"
+            },
+            "ticketId": {
+              "type": "string",
+              "description": "Message ID"
+            },
+            "receivedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "replyCount": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "chat.reply",
+      "display_name": "Reply in a chat thread",
+      "category": "chat",
+      "description": "Answer a chat message in its thread where the connector can, otherwise as a new message quoting the original (threaded=false). Implementers: Slack (threaded, marks the message handled), Microsoft Teams (webhook, not threaded).",
+      "effect": "write",
+      "fanout": false,
+      "traits": [
+        "human_authored",
+        "thread_destination"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "threadId",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "threadId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "threadId from chat.list_new"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "threaded": {
+            "type": "boolean",
+            "description": "false when the connector could only post a new message quoting the original"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "markedProcessed": {
+            "type": "boolean",
+            "description": "The original message is marked handled so chat.list_new skips it"
+          }
+        }
+      }
+    },
+    {
+      "key": "cloud.costs.summary",
+      "display_name": "Summarise cloud costs",
+      "category": "cloud",
+      "description": "Actual spend for a period, grouped by service (one entry per connection). At most one year. Implementers: Azure, AWS.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "sinceIso": {
+            "type": "string",
+            "format": "date",
+            "description": "Start date; default: first day of the current month"
+          },
+          "untilIso": {
+            "type": "string",
+            "format": "date",
+            "description": "End date; default: today"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "provider",
+            "currency",
+            "total",
+            "groups"
+          ],
+          "properties": {
+            "to": {
+              "type": "string"
+            },
+            "from": {
+              "type": "string"
+            },
+            "total": {
+              "type": "number"
+            },
+            "groups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Service name"
+                  },
+                  "amount": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "account": {
+              "type": "string"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "provider": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "cloud.health.events",
+      "display_name": "List cloud health events",
+      "category": "cloud",
+      "description": "Provider incidents and planned maintenance that affect this account. Fans out across bindings. Implementers: Azure, AWS (Business/Enterprise support), Google Cloud.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1
+          },
+          "sinceIso": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Default: 7 days ago"
+          },
+          "activeOnly": {
+            "type": "boolean",
+            "default": true,
+            "description": "Only events still active or upcoming"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "eventId",
+            "provider",
+            "status"
+          ],
+          "properties": {
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "status": {
+              "type": "string",
+              "description": "active, upcoming or resolved"
+            },
+            "eventId": {
+              "type": "string"
+            },
+            "service": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "summary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "provider": {
+              "type": "string"
+            },
+            "startedAt": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "updatedAt": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "cloud.resources.list",
+      "display_name": "List cloud resources",
+      "category": "cloud",
+      "description": "Read-only inventory of cloud resources. Fans out across bindings. Implementers: Azure, AWS (tagged resources only), Google Cloud.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Optional resource type in the provider's own form, e.g. Microsoft.Web/sites, ec2:instance, compute.googleapis.com/Instance"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 100,
+            "maximum": 1000,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Optional text matched against resource names"
+          },
+          "region": {
+            "type": "string",
+            "description": "Optional region / location, e.g. westeurope, eu-west-2, europe-west2"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "resourceId",
+            "provider"
+          ],
+          "properties": {
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tags": {
+              "type": "object"
+            },
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "state": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "account": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Subscription ID, AWS account or GCP project"
+            },
+            "provider": {
+              "enum": [
+                "azure",
+                "aws",
+                "gcp"
+              ],
+              "type": "string"
+            },
+            "resourceId": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "code.get_file",
+      "display_name": "Read a file from a repository",
+      "category": "code",
+      "description": "Text content of one file. Large files are cut at the connection's max_file_bytes (truncated=true). Implementers: GitHub, Azure DevOps.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "Branch, tag or commit; default: the default branch"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "binary": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "UTF-8 text; null for binary files"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "key": "code.search",
+      "display_name": "Search code",
+      "category": "code",
+      "description": "Find files whose content matches a query. Fans out across bindings. Implementers: GitHub.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "repo": {
+            "type": "string",
+            "description": "Optional repository; default: the connection's default or allowed repositories"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "repo",
+            "path"
+          ],
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "snippet": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "customers.lookup_by_email",
+      "display_name": "Lookup customer by email",
+      "category": "customers",
+      "description": "Look up a customer by email across the ecommerce platform. Returns identity + loyalty tier + LTV + account flags for the inbox customer context panel. Implementers: Shopify, BetterCommerce; Freshdesk/Zendesk customer records as fallback.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": 600,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Vendor-stable customer id"
+          },
+          "email": {
+            "type": "string"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "fraud",
+                "vip",
+                "on_hold",
+                "chargeback_risk",
+                "first_order"
+              ],
+              "type": "string"
+            },
+            "description": "Account flags â€” connector normalises vendor flags to this canonical set"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "ltvAmount": {
+            "type": "number",
+            "description": "Lifetime value in order currency; absent if not computable at the connector"
+          },
+          "loyaltyTier": {
+            "type": "string",
+            "description": "Vendor loyalty program tier if present â€” bronze/silver/gold/vip style"
+          },
+          "ltvCurrency": {
+            "type": "string"
+          },
+          "totalOrders": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "customerSinceIso": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    {
+      "key": "customers.recent_orders",
+      "display_name": "Recent orders for a customer",
+      "category": "customers",
+      "description": "Last N orders for a customer, newest first. Thin wrapper over the ecommerce connector's order list; implementers can delegate to orders.lookup_by_email when customerId maps 1:1 to email.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": 600,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "customerId"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "maximum": 20,
+            "minimum": 1
+          },
+          "customerId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/canonicalOrder"
+        }
+      }
+    },
+    {
+      "key": "customers.recent_returns",
+      "display_name": "Recent returns for a customer",
+      "category": "customers",
+      "description": "Last N returns (RMAs) for a customer, newest first, shaped as list items for the reviewer context panel. Implementers: BetterCommerce.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Fallback lookup key when customerId is absent"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "maximum": 20,
+            "minimum": 1
+          },
+          "customerId": {
+            "type": "string",
+            "description": "The customer id from customers.lookup_by_email"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "title"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "badges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "tone": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "subtitle": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Order number and reason for return"
+            },
+            "timestamp": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "customers.recent_tickets",
+      "display_name": "Recent tickets for a customer",
+      "category": "customers",
+      "description": "Last N tickets for a customer (closed or open), newest first. Powers the \"previous tickets\" rail in the customer context panel.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": 600,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Fallback lookup key when customerId is not the ticket-system's native requester id"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "maximum": 20,
+            "minimum": 1
+          },
+          "customerId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "ticketId",
+            "subject",
+            "status",
+            "createdAt"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "subject": {
+              "type": "string"
+            },
+            "closedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "ticketId": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "resolutionSummary": {
+              "type": "string",
+              "description": "One-line summary â€” connector may synthesise from the last agent reply if not provided natively"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "db.jobs.history",
+      "display_name": "Get SQL Agent job history",
+      "category": "evidence",
+      "description": "Recent SQL Agent job runs and step results from msdb (newest first, at most 200). Needs SQLAgentReaderRole in msdb; not available on Azure SQL Database. Internal evidence: for understanding only, never quoted.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "internal_evidence",
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "default": 7,
+            "maximum": 30,
+            "minimum": 1
+          },
+          "jobNamePattern": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "LIKE pattern for the job name; default % (all jobs)"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "job",
+            "step",
+            "status"
+          ],
+          "properties": {
+            "job": {
+              "type": "string"
+            },
+            "step": {
+              "type": "string",
+              "description": "Step name; (job outcome) for the overall result row"
+            },
+            "runAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Server local time, ISO-8601 without offset"
+            },
+            "status": {
+              "enum": [
+                "succeeded",
+                "failed",
+                "retry",
+                "canceled",
+                "in_progress",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Capped at 1000 characters"
+            },
+            "durationSeconds": {
+              "type": "integer"
+            }
+          }
+        },
+        "maxItems": 200
+      }
+    },
+    {
+      "key": "db.object.definition",
+      "display_name": "Get object definition",
+      "category": "evidence",
+      "description": "Returns the T-SQL text of a procedure, view or function (OBJECT_DEFINITION), capped at 200 KB, subject to the connection's object_allowlist. Never table data. Internal evidence: for understanding only, never quoted.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "internal_evidence",
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "schema.name or name (dbo is preferred when the schema is not given)"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "schema",
+          "name",
+          "type",
+          "definition",
+          "truncated"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schema": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the text was cut at 200 KB"
+          },
+          "definition": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Module text (T-SQL). Null for tables, encrypted modules, or without VIEW DEFINITION"
+          }
+        }
+      }
+    },
+    {
+      "key": "db.objects.list",
+      "display_name": "List database objects",
+      "category": "evidence",
+      "description": "Finds user objects by name in a SQL Server database (sys.objects), at most 200, filtered by the connection's object_allowlist. Metadata only. Internal evidence: for understanding only, never quoted.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "internal_evidence",
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "types": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "procedure",
+                    "view",
+                    "function",
+                    "table"
+                  ],
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "procedure (default), view, function, table; a string (comma-separated) or an array"
+          },
+          "pattern": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "LIKE pattern for the object name, e.g. procDWGetProductsToSync%. Optional schema part: dbo.procDW%. Letters, digits, spaces and _ % - $ # @ . only."
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "schema",
+            "name",
+            "type"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "procedure",
+                "view",
+                "function",
+                "table"
+              ],
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            },
+            "created": {
+              "type": "string",
+              "description": "Server local time, ISO-8601 without offset"
+            },
+            "modified": {
+              "type": "string",
+              "description": "Server local time, ISO-8601 without offset"
+            }
+          }
+        },
+        "maxItems": 200
+      }
+    },
+    {
+      "key": "db.proc.stats",
+      "display_name": "Get procedure statistics",
+      "category": "evidence",
+      "description": "Execution statistics of a stored procedure from the plan cache (sys.dm_exec_procedure_stats), summed over its cached plans. Every field is null when the procedure is not in the plan cache (not run since the last restart or cache flush): that means no statistics, not zero executions. Internal evidence: for understanding only, never quoted.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "internal_evidence",
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "schema.name or name of a stored procedure"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "executionCount",
+          "avgElapsedMs",
+          "maxElapsedMs",
+          "lastElapsedMs",
+          "lastExecutionTime",
+          "cachedTime"
+        ],
+        "properties": {
+          "cachedTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avgElapsedMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maxElapsedMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lastElapsedMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "executionCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastExecutionTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "email.send",
+      "display_name": "Send an email",
+      "category": "email",
+      "description": "Bare-email send via SMTP/SendGrid/SES. Use tickets.reply when the source is a ticketing system; use email.send only when no ticket context exists.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [
+        "human_authored"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string"
+          },
+          "linkStyle": {
+            "enum": [
+              "text",
+              "button",
+              "plain"
+            ],
+            "type": "string",
+            "default": "text",
+            "description": "How links show in the sent email: text = the label (or the host for a bare URL), button = a button, plain = the URL itself."
+          },
+          "buttonColor": {
+            "type": "string",
+            "pattern": "^#([0-9a-fA-F]{3}){1,2}$",
+            "description": "Button colour when linkStyle is button (#rgb or #rrggbb)."
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "messageId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "files.get",
+      "display_name": "Get file",
+      "category": "files",
+      "description": "Fetch one file by ID: metadata, link, and its text when the file is text-like (txt, md, html, csv, json, xml). Other formats return metadata and a link only.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "textAvailable"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "type": "integer"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFolder": {
+            "type": "boolean"
+          },
+          "mimeType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "lastModified": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "textAvailable": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "key": "files.search",
+      "display_name": "Search files",
+      "category": "files",
+      "description": "Find files (and folders) by name or content in a connected file store such as OneDrive or SharePoint. Returns metadata and a link; use files.get to read a file. Implementers: OneDrive / SharePoint.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "size": {
+              "type": "integer"
+            },
+            "score": {
+              "type": "number"
+            },
+            "isFolder": {
+              "type": "boolean"
+            },
+            "mimeType": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "lastModified": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "inbox.update_thread_status",
+      "display_name": "Update a thread's status",
+      "category": "inbox",
+      "description": "Transition a thread's status. Called by agents in their reaction code (e.g. CS agent moves to waiting_reviewer when it posts a draft, to closed when the ticket is resolved in the source system).",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [
+        "inbox_writer"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "threadId",
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "waiting_reviewer",
+              "waiting_counterparty",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "key": "inbox.upsert_message",
+      "display_name": "Insert or update a message in a thread (dedup by external id)",
+      "category": "inbox",
+      "description": "Insert or update a message in a thread. The (thread_id, external_message_id) UNIQUE constraint makes duplicate inserts impossible at the DB layer â€” safe to call from any insertion path (sync poll, webhook delivery, agent-authored response from tickets.reply).",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [
+        "inbox_writer"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "threadId",
+          "externalMessageId",
+          "senderType",
+          "direction",
+          "contentMd"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "draft",
+              "pending_review",
+              "sent",
+              "rejected",
+              "archived",
+              "sending",
+              "send_failed"
+            ],
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "threadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contentMd": {
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "inbound",
+              "outbound",
+              "internal_note"
+            ],
+            "type": "string"
+          },
+          "senderRef": {
+            "type": "string"
+          },
+          "isInternal": {
+            "type": "boolean",
+            "default": false
+          },
+          "senderType": {
+            "enum": [
+              "external",
+              "agent",
+              "reviewer",
+              "system"
+            ],
+            "type": "string"
+          },
+          "contentHtml": {
+            "type": "string"
+          },
+          "invocationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "externalMessageId": {
+            "type": "string"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "messageId",
+          "created"
+        ],
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "description": "true if a new row was inserted; false if an existing row matched (threadId, externalMessageId) and was updated"
+          },
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    {
+      "key": "inbox.upsert_thread",
+      "display_name": "Create or update a thread in the reviewer inbox",
+      "category": "inbox",
+      "description": "Create a new thread or update an existing one keyed by (tenant, channel_type, external_ref). Platform-shipped write primitive used by ThreadMirrorService internally and callable by agents directly for non-mirrored writes.",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [
+        "inbox_writer"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "channelType",
+          "externalRef",
+          "subject"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "waiting_reviewer",
+              "waiting_counterparty",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "channelType": {
+            "enum": [
+              "email",
+              "ticket",
+              "chat",
+              "agent_direct"
+            ],
+            "type": "string"
+          },
+          "externalRef": {
+            "type": "string"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type",
+                "id",
+                "name"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "user",
+                    "agent",
+                    "external"
+                  ],
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "threadId"
+        ],
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "description": "true if a new row was inserted; false if an existing row matched (externalRef, channelType) and was updated"
+          },
+          "threadId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    {
+      "key": "issues.comment",
+      "display_name": "Comment on an issue",
+      "category": "issues",
+      "description": "Add a comment to an issue or work item. Needs write permission on the token. Goes to a single binding.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "issueId",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "commentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "issues.create",
+      "display_name": "Create an issue",
+      "category": "issues",
+      "description": "Open a new issue (GitHub) or work item (Azure DevOps). Needs write permission on the token. Goes to a single binding.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok",
+          "issueId"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repo": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "issues.get",
+      "display_name": "Get an issue with its comments",
+      "category": "issues",
+      "description": "One issue or work item, with its comments. Goes to a single binding.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "issueId"
+        ],
+        "properties": {
+          "repo": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "issueId",
+          "title",
+          "state"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "body": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "commentId": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "issues.list",
+      "display_name": "List issues",
+      "category": "issues",
+      "description": "Issues (GitHub) or work items (Azure DevOps), most recently updated first. Pull requests are not included. Fans out across bindings.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "description": "GitHub: owner/name. Azure DevOps: project. Default: the connection's default"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 30,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "state": {
+            "enum": [
+              "open",
+              "closed",
+              "all"
+            ],
+            "type": "string",
+            "default": "open"
+          },
+          "sinceIso": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only issues updated after this time"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/issue"
+        },
+        "definitions": {
+          "issue": {
+            "type": "object",
+            "required": [
+              "issueId",
+              "title",
+              "state"
+            ],
+            "properties": {
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "body": {
+                "type": "string"
+              },
+              "repo": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "author": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "issueId": {
+                "type": "string",
+                "description": "GitHub issue number or Azure DevOps work item ID"
+              },
+              "rawState": {
+                "type": "string"
+              },
+              "assignees": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "createdAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "updatedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "knowledge.get",
+      "display_name": "Get knowledge article by ID",
+      "category": "knowledge",
+      "description": "Fetch the full body of a single KB article by ID.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": 3600,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "body"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "knowledge.search",
+      "display_name": "Search knowledge base",
+      "category": "knowledge",
+      "description": "Retrieve KB articles ranked by relevance to a natural-language query. Implementers: Zendesk KB, Intercom Articles, custom REST KB, PIM content.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": 3600,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "k": {
+            "type": "integer",
+            "default": 5,
+            "maximum": 50,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "title",
+            "snippet"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "score": {
+              "type": "number"
+            },
+            "title": {
+              "type": "string"
+            },
+            "snippet": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "logs.query",
+      "display_name": "Query logs (KQL)",
+      "category": "evidence",
+      "description": "Runs a read-only KQL query against an Azure Monitor Log Analytics workspace (including workspace-based Application Insights tables). Bounded: max_rows, 256 KB, timeout. Internal evidence: for understanding only, never quoted.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "internal_evidence",
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "KQL query, e.g. AppExceptions | where TimeGenerated > ago(1h) | summarize count() by ProblemId. Management commands (starting with .) are refused. A | take is appended so at most max_rows rows come back."
+          },
+          "timespan": {
+            "type": "string",
+            "description": "ISO-8601 duration for the query window, e.g. PT1H, P1D. Default: the connection's default_timespan (P7D). At most P30D."
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "columns",
+          "rows",
+          "rowCount",
+          "truncated",
+          "timespan"
+        ],
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "timespan": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when rows were cut at max_rows or 256 KB, a cell was cut at 8000 characters, or the service returned a partial result"
+          }
+        }
+      }
+    },
+    {
+      "key": "macros.list",
+      "display_name": "List ticket-system macros / canned responses",
+      "category": "macros",
+      "description": "List the tenant's macros / canned responses from the ticket system for one-way mirror into Konstera (ADR-022 Â§Macros). Zendesk: GET /api/v2/macros.json. Freshdesk: GET /api/v2/admin/canned_responses. Intercom: GET /articles (closest analogue). Called on first connection sync and on manual re-sync.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "description": "Filter to a specific folder/category if the ticket system groups macros"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "externalId",
+            "title",
+            "bodyHtml"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "folder": {
+              "type": "string"
+            },
+            "bodyHtml": {
+              "type": "string"
+            },
+            "variables": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "string"
+                  }
+                }
+              },
+              "description": "Variable substitution hints â€” connector-normalised"
+            },
+            "externalId": {
+              "type": "string",
+              "description": "Ticket-system macro id â€” used as the dedup key when syncing into Konstera macros table"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "notifications.send",
+      "display_name": "Send a notification",
+      "category": "notifications",
+      "description": "Post a one-way notification to the connection's notification channel (e.g. tell reviewers a draft is waiting for approval). Implementers: Slack, Microsoft Teams.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional link, e.g. to the draft waiting for approval"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Message text (plain text; light formatting where the channel supports it)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional short heading shown above the text"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "orders.list_recent",
+      "display_name": "List recent orders",
+      "category": "orders",
+      "description": "List recent orders, optionally scoped to a single customer and/or a time window.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "sinceIso": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customerId": {
+            "type": "string"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "orderId"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "qty": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "sku": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "total": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "orderId": {
+              "type": "string",
+              "description": "Customer-facing order number"
+            },
+            "currency": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "placedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "tracking": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "carrier": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "shippedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "customerEmail": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "For ownership checks only â€” never shown to a customer"
+            },
+            "fulfilmentStatus": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "orders.lookup_by_email",
+      "display_name": "Lookup orders by customer email",
+      "category": "orders",
+      "description": "Fetch recent orders for a customer identified by email address. Retail primary lookup. Implementers: Shopify, BigCommerce, WooCommerce, NetSuite, custom REST.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": 120,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 10,
+            "maximum": 50,
+            "minimum": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "orderId"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "qty": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "sku": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "total": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "orderId": {
+              "type": "string",
+              "description": "Customer-facing order number"
+            },
+            "currency": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "placedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "tracking": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "carrier": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "shippedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "customerEmail": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "For ownership checks only â€” never shown to a customer"
+            },
+            "fulfilmentStatus": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "orders.lookup_by_id",
+      "display_name": "Lookup order by ID",
+      "category": "orders",
+      "description": "Fetch a single order by its ID. Canonical shape returned regardless of source system.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": 120,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "orderId"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Optional: the requester's email, used by providers to prove the order belongs to them"
+          },
+          "orderId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "orderId"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "qty": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "sku": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "total": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "orderId": {
+            "type": "string",
+            "description": "Customer-facing order number"
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tracking": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "carrier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "shippedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "customerEmail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For ownership checks only â€” never shown to a customer"
+          },
+          "fulfilmentStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "orders.lookup_by_phone",
+      "display_name": "Lookup orders by customer mobile number",
+      "category": "orders",
+      "description": "Fetch a customer's recent orders by mobile number, for stores that identify customers by mobile. Weaker identity proof than the sender's email: agents should flag these matches for human confirmation.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": 120,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "maximum": 50,
+            "minimum": 1
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Mobile number; providers match on the last 10 digits"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "orderId"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "qty": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "sku": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "total": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "orderId": {
+              "type": "string",
+              "description": "Customer-facing order number"
+            },
+            "currency": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "placedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "tracking": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "number": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "carrier": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "shippedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "customerEmail": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "For ownership checks only â€” never shown to a customer"
+            },
+            "fulfilmentStatus": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "pull_requests.list",
+      "display_name": "List pull requests",
+      "category": "code",
+      "description": "Pull requests in one repository, most recently updated first. Fans out across bindings. Implementers: GitHub, Azure DevOps.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 30,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "state": {
+            "enum": [
+              "open",
+              "closed",
+              "merged",
+              "all"
+            ],
+            "type": "string",
+            "default": "open"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "pullRequestId",
+            "title",
+            "state"
+          ],
+          "properties": {
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "repo": {
+              "type": "string"
+            },
+            "draft": {
+              "type": "boolean"
+            },
+            "state": {
+              "enum": [
+                "open",
+                "closed",
+                "merged"
+              ],
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "author": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "createdAt": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "updatedAt": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sourceBranch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "targetBranch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pullRequestId": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "refunds.create",
+      "display_name": "Create a refund",
+      "category": "refunds",
+      "description": "Issue a refund against an existing order. Not all connectors implement writes; check available() before calling.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "amount",
+          "currency",
+          "reason"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "refundId",
+          "status"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "refundId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "repos.list",
+      "display_name": "List repositories",
+      "category": "code",
+      "description": "Repositories the connection can reach (limited by the token and the connection's allowed list). Fans out across bindings. Implementers: GitHub, Azure DevOps.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 30,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Optional text matched against name and description"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "repoId",
+            "fullName"
+          ],
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "repoId": {
+              "type": "string"
+            },
+            "private": {
+              "type": "boolean"
+            },
+            "fullName": {
+              "type": "string",
+              "description": "Pass as repo to the other code capabilities"
+            },
+            "updatedAt": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "defaultBranch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "sla.compute",
+      "display_name": "Compute first-response + resolution SLA state for a thread",
+      "category": "sla",
+      "description": "Compute the current SLA state for a thread using the tenant's SLA policies. Platform-shipped generic computation â€” any inbox-producing agent benefits. v1 uses a tenant-wide default policy; per-channel + per-tier policies land in a follow-up.",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "threadId"
+        ],
+        "properties": {
+          "threadId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "met",
+              "at_risk",
+              "breached",
+              "not_applicable"
+            ],
+            "type": "string"
+          },
+          "appliedPolicy": {
+            "type": "string",
+            "description": "Human-readable name of the policy that matched (e.g. 'VIP customer â€” 2h FRT')"
+          },
+          "resolutionDueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolutionMetAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firstResponseDueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firstResponseMetAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    {
+      "key": "thread_mirror.register",
+      "display_name": "Register a thread mirror sync job",
+      "category": "thread_mirror",
+      "description": "Register a sync job so the platform's ThreadMirrorService (ADR-024) mirrors an external threaded conversation into the reviewer inbox. Called by agents at install time (or dynamically â€” e.g. CS agent registers one per ticket started). Returns a mirrorJobId for subsequent management calls.",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "connectionId",
+          "fetchCapability",
+          "dedupFieldPath",
+          "externalRef"
+        ],
+        "properties": {
+          "cadenceTier": {
+            "enum": [
+              "active",
+              "recent",
+              "stale",
+              "dormant"
+            ],
+            "type": "string",
+            "default": "active"
+          },
+          "externalRef": {
+            "type": "string",
+            "description": "The external resource id (ticket id, PR number, channel id, â€¦) used in the fetch capability's arg template"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dedupFieldPath": {
+            "type": "string",
+            "description": "JSONPath to the per-message dedup id in the fetch capability's response"
+          },
+          "webhookEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "fetchCapability": {
+            "type": "string",
+            "description": "Key of a capability tagged mirror_source"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "mirrorJobId"
+        ],
+        "properties": {
+          "webhookUrl": {
+            "type": "string",
+            "description": "Generated webhook URL for this job â€” operator copy-pastes into the external vendor's admin console if webhookEnabled is true"
+          },
+          "mirrorJobId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    {
+      "key": "thread_mirror.status",
+      "display_name": "Get sync lag and state for a mirror job",
+      "category": "thread_mirror",
+      "description": "Query the current state of a sync job. Used by the portal to render \"last synced 23s ago\" indicators and by agents to decide whether a draft is based on fresh enough state.",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "mirrorJobId"
+        ],
+        "properties": {
+          "mirrorJobId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "mirrorJobId",
+          "state"
+        ],
+        "properties": {
+          "lagMs": {
+            "type": "integer",
+            "description": "Milliseconds since last successful sync; the inbox UI surfaces this as a last-synced badge"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "paused",
+              "error",
+              "unregistered"
+            ],
+            "type": "string"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "lastSyncAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextSyncAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cadenceTier": {
+            "type": "string"
+          },
+          "mirrorJobId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "thread_mirror.unregister",
+      "display_name": "Cancel a thread mirror sync job",
+      "category": "thread_mirror",
+      "description": "Stop syncing a registered thread mirror job. Idempotent â€” unregistering an unknown job returns ok=true. Pre-existing messages in the thread are preserved; only the sync loop stops.",
+      "effect": "internal",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "mirrorJobId"
+        ],
+        "properties": {
+          "mirrorJobId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "key": "tickets.get_by_id",
+      "display_name": "Get a ticket including thread history",
+      "category": "tickets",
+      "description": "Fetch full ticket including the message thread. Each thread entry carries its externalMessageId (dedup key) and isPrivate (internal note flag).",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "mirror_source"
+      ],
+      "cache_ttl_seconds": 120,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "ticketId"
+        ],
+        "properties": {
+          "ticketId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "threadId",
+          "subject",
+          "status"
+        ],
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "thread": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "externalMessageId",
+                "author",
+                "body",
+                "sentAt"
+              ],
+              "properties": {
+                "body": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": "string"
+                },
+                "sentAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "bodyHtml": {
+                  "type": "string"
+                },
+                "isPrivate": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "True for internal notes; mirrored into messages.is_internal"
+                },
+                "authorKind": {
+                  "enum": [
+                    "customer",
+                    "agent",
+                    "system"
+                  ],
+                  "type": "string",
+                  "description": "Who the ticket system logs as the author"
+                },
+                "externalMessageId": {
+                  "type": "string",
+                  "description": "Ticket-system id, used as the dedup key during mirror sync (ADR-022)"
+                }
+              }
+            }
+          },
+          "subject": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string",
+            "description": "Stable id used for workflow dedup â€” same thread always same id"
+          },
+          "ticketId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "key": "tickets.list_new",
+      "display_name": "List new tickets since a timestamp",
+      "category": "tickets",
+      "description": "Poll for tickets received since a given timestamp. Used by scheduled CS agents. Implementers: Zendesk, Freshdesk, inbound-email.",
+      "effect": "read",
+      "fanout": true,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1
+          },
+          "sinceIso": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/canonicalTicket"
+        }
+      }
+    },
+    {
+      "key": "tickets.reply",
+      "display_name": "Reply on a ticket",
+      "category": "tickets",
+      "description": "Post a reply on a ticket in-system. visibility=public creates a customer-facing comment; visibility=internal creates a private note mirrored into messages.is_internal. Response includes the externalMessageId for immediate dedup backfill.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [
+        "human_authored",
+        "thread_destination"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ticketId": {
+            "type": "string"
+          },
+          "linkStyle": {
+            "enum": [
+              "text",
+              "button",
+              "plain"
+            ],
+            "type": "string",
+            "default": "text",
+            "description": "How links show in the sent email: text = the label (or the host for a bare URL), button = a button, plain = the URL itself."
+          },
+          "visibility": {
+            "enum": [
+              "public",
+              "internal"
+            ],
+            "type": "string",
+            "default": "public",
+            "description": "public = customer-facing reply; internal = private note mirrored into messages.is_internal"
+          },
+          "buttonColor": {
+            "type": "string",
+            "pattern": "^#([0-9a-fA-F]{3}){1,2}$",
+            "description": "Button colour when linkStyle is button (#rgb or #rrggbb)."
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok",
+          "externalMessageId"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "externalMessageId": {
+            "type": "string",
+            "description": "Ticket-system id of the newly-created comment; Konstera backfills this on its own message row immediately so sync-tick doesn't have to"
+          }
+        }
+      }
+    },
+    {
+      "key": "tickets.update_fields",
+      "display_name": "Update ticket fields (priority, type, tags)",
+      "category": "tickets",
+      "description": "Write triage fields on a ticket: priority, type and tags only (allowlisted by the connector). Used by the CS agent in triage apply mode (ADR-030). Freshdesk: PUT /api/v2/tickets/{id}; priority low/medium/high/urgent = 1-4; the type must be one of the account's ticket types.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "ticketId"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Replaces the ticket's tags"
+          },
+          "type": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "A ticket type the help desk account defines"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "ticketId": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          }
+        },
+        "minProperties": 2,
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "type": "object"
+      }
+    },
+    {
+      "key": "tickets.update_status",
+      "display_name": "Update ticket status",
+      "category": "tickets",
+      "description": "Mark a ticket as resolved/closed/pending after a reply is sent.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "pending",
+              "resolved",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "ticketId": {
+            "type": "string"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "ok",
+          "status"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}
