@@ -34,6 +34,8 @@ public sealed class AgentContext
     public required HumanService       Human       { get; init; }  // M7c
     public required RuleService        Rule        { get; init; }  // M7d
     public required ConnectorService   Connector   { get; init; }  // ADR-009
+    public required CapabilityService  Capability  { get; init; }  // ADR-013
+    public required SemanticService    Semantic    { get; init; }  // ADR-037
 
     /// <summary>
     /// Build a context from the env vars the kernel injects at
@@ -70,6 +72,8 @@ public sealed class AgentContext
             Human         = new HumanService(mcp, instanceId),
             Rule          = new RuleService(mcp, instanceId),
             Connector     = new ConnectorService(mcp, instanceId),
+            Capability    = new CapabilityService(mcp, instanceId),
+            Semantic      = new SemanticService(mcp, instanceId),
         };
     }
 }
