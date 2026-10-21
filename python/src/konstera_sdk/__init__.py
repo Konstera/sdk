@@ -29,12 +29,20 @@ from .llm import LlmResult, LlmService
 from .logging import LogService
 from .rule import Rule, RuleService, RuleSummary
 from .runtime import run
+from .semantic import (
+    ClusterPassRate,
+    GlossaryTerm,
+    OntologyEntity,
+    SemanticService,
+    Skill,
+    SkillStep,
+)
 from .state import StateService
 from .tool import ToolService
 from .types import AgentRequest, AgentResponse
 from .vector import VectorHit, VectorService
 
-__version__ = "0.9.0"   # ADR-013 — ctx.capability.* purpose-first indirection over connectors
+__version__ = "0.12.0"  # ADR-037 Step 3.5 B.2 — ctx.semantic.ontology_lookup() + OntologyEntity
 
 __all__ = [
     "Agent",
@@ -53,11 +61,14 @@ __all__ = [
     "CapabilityService",
     "CapabilityUnbound",
     "CapabilityUpstreamFailed",
+    "ClusterPassRate",
     "ConnectorGrant",
     "ConnectorService",
     "CostService",
     "CredentialsService",
+    "GlossaryTerm",
     "HumanDecision",
+    "OntologyEntity",
     "HumanService",
     "LlmResult",
     "LlmService",
@@ -65,6 +76,9 @@ __all__ = [
     "Rule",
     "RuleService",
     "RuleSummary",
+    "SemanticService",
+    "Skill",
+    "SkillStep",
     "StateService",
     "ToolService",
     "VectorHit",
