@@ -82,3 +82,12 @@ jobs:
       - name: Build konstera-sdk-contexts
         working-directory: typescript/packages/konstera-sdk-contexts
         run: pnpm run build
+      - name: Build konstera-sdk (agent SDK)
+        working-directory: typescript/packages/konstera-sdk
+        run: pnpm run build
+      - name: Type-check konstera-sdk
+        working-directory: typescript/packages/konstera-sdk
+        run: pnpm run typecheck
+      - name: Test konstera-sdk (vitest)
+        working-directory: typescript/packages/konstera-sdk
+        run: pnpm run test

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // @modelcontextprotocol/sdk's Transport interface declares optional
+    // fields like `sessionId: string` where its concrete implementations
+    // (e.g. StreamableHTTPClientTransport) widen to `string | undefined`.
+    // exactOptionalPropertyTypes:true (set in tsconfig.base.json) treats
+    // that widening as an error. We relax it here since the behaviour is
+    // correct and the base pack-only package doesn't share this constraint.
+    // Revisit when upstream MCP SDK types align.
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "tests"]
+}
