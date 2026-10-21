@@ -31,6 +31,8 @@ public sealed class ContextTests
         Assert.NotNull(ctx.Human);
         Assert.NotNull(ctx.Rule);
         Assert.NotNull(ctx.Connector);
+        Assert.NotNull(ctx.Capability);
+        Assert.NotNull(ctx.Semantic);
     }
 
     [Fact]
