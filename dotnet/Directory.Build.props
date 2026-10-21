@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    Shared build settings for all .NET projects in this repo.
+
+    Historical note: previously the TargetFramework was inherited from the
+    Platform repo's root Directory.Build.props (when sdk/ lived as a nested
+    folder under Platform). After ADR-036 split sdk/ into its own repo
+    (github.com/Konstera/sdk), there was no inheriting ancestor and CI builds
+    on GitHub Actions failed with NETSDK1013. This file closes the gap:
+    settings previously inherited across the Platform/SDK boundary now live
+    here, local to the SDK repo.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>
