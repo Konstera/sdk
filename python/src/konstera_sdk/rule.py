@@ -61,11 +61,33 @@ class RuleService:
         self._instance = instance_id
 
     async def get(self, rule_key: str, *, at_time: str | None = None) -> Rule:
-        """Fetch the active rule for `rule_key`, optionally as of `at_time`
-        (ISO-8601). Raises if no active rule matches.
+        """Fetch the active rule for a given key.
 
-        RECORD the returned rule.rule_id in your agent's output for
-        reproducibility — replays should use `get_by_id` with that id."""
+        Args:
+            rule_key: Business-level key (e.g. `"prepayment-classification"`,
+                `"credit-limit-tier"`). Multiple versions may exist; this
+                returns the active one as of `at_time`.
+            at_time: Optional ISO-8601 timestamp. If provided, returns the
+                version that was active at that moment (for retrospective
+                audits or reprocessing historical data). Omit to get "now".
+
+        Returns:
+            `Rule` dataclass with the full version metadata + `content` dict.
+
+        Raises:
+            RuntimeError: If no active rule matches the key at the requested
+                time (platform surfaces this as a specific kernel error).
+
+        **Reproducibility**: record the returned `rule.rule_id` in your agent's
+        output. Replays should use `get_by_id(rule_id)` so the computation
+        uses the exact same version even if a newer one is now active.
+
+        Example:
+            >>> rule = await ctx.rule.get("prepayment-classification")
+            >>> if order.total > rule.content["threshold_usd"]:
+            ...     await ctx.human.request(kind="prepayment-review", tier="T1", ...)
+            >>> # Save rule.rule_id in the audit trail for later replay
+        """
         args: dict[str, Any] = {
             "callerInstanceId": self._instance,
             "ruleKey": rule_key,
@@ -76,9 +98,22 @@ class RuleService:
         return self._parse(raw)
 
     async def get_by_id(self, rule_id: str) -> Rule:
-        """Fetch a specific rule VERSION by its UUID (from a prior get()).
-        Version-pinned lookup — always returns the same content regardless
-        of whether a newer active version now exists."""
+        """Fetch a specific rule VERSION by its UUID.
+
+        Args:
+            rule_id: The UUID from a prior `get()` call's `rule.rule_id`.
+
+        Returns:
+            `Rule` with the exact pinned version. Reproducible: always
+            returns the same content regardless of whether a newer active
+            version now exists.
+
+        Example:
+            >>> # Replay an old computation using the rule that was active then
+            >>> original_rule_id = audit_trail["rule_id"]
+            >>> rule = await ctx.rule.get_by_id(original_rule_id)
+            >>> # recompute with historical rule
+        """
         raw = await self._mcp.call_tool_for_result(
             "rule_get_by_id",
             {"callerInstanceId": self._instance, "ruleId": rule_id},
@@ -88,10 +123,32 @@ class RuleService:
     async def list(
         self, *, rule_key: str | None = None, include_all: bool = False
     ) -> list[Rule] | list[RuleSummary]:
-        """If rule_key is provided, returns all active versions of that key
-        as `Rule` objects. If include_all=True, includes draft/rejected too.
-        If rule_key is omitted, returns one `RuleSummary` per distinct key
-        (the current active version), for building an admin/portal overview."""
+        """List rules in two modes based on arguments.
+
+        Args:
+            rule_key: If provided, lists all versions of that single key.
+                Returns `list[Rule]` with full content.
+            include_all: Only meaningful with `rule_key`. If `True`, includes
+                draft/rejected versions. If `False` (default), active only.
+
+        Returns:
+            Depends on arguments:
+            - With `rule_key`: `list[Rule]` — full version history for that key.
+            - Without `rule_key`: `list[RuleSummary]` — one entry per distinct
+              key (the current active version). Useful for building an
+              admin overview.
+
+        Example:
+            >>> # Full version history of a specific rule
+            >>> versions = await ctx.rule.list(rule_key="prepayment-classification")
+            >>> for v in versions:
+            ...     print(f"v{v.version} effective {v.effective_from}")
+            >>>
+            >>> # Portal overview — one row per rule
+            >>> summaries = await ctx.rule.list()
+            >>> for s in summaries:
+            ...     print(f"{s.rule_key} v{s.version}")
+        """
         args: dict[str, Any] = {
             "callerInstanceId": self._instance,
             "includeAll": include_all,

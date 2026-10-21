@@ -236,9 +236,29 @@ class SemanticService:
         self._instance = instance_id
 
     async def glossary_lookup(self, term: str) -> GlossaryTerm | None:
-        """Look up a term by case-insensitive name match, with synonym fallback.
-        Returns None if the term is unknown to this tenant or the Context
-        Service feature is disabled."""
+        """Look up a glossary term.
+
+        Args:
+            term: Term name or synonym. Case-insensitive match; synonyms
+                are searched if the primary name doesn't hit.
+
+        Returns:
+            `GlossaryTerm` with the authoritative definition + metadata,
+            or `None` if (a) the term is unknown to this tenant, or
+            (b) the Context Service feature is disabled for this tenant
+            (ADR-039 — the SDK translates the kernel's feature-disabled
+            envelope into None so agents branch on data availability without
+            special-casing).
+
+        Example:
+            >>> # Ground a prompt in tenant-authoritative definitions
+            >>> term = await ctx.semantic.glossary_lookup("refund_window_days")
+            >>> if term:
+            ...     system_prompt = f"Our policy: {term.name} = {term.definition}"
+            >>> result = await ctx.llm.complete(
+            ...     prompt=user_q, system=system_prompt, purpose="narrator",
+            ... )
+        """
         raw = await self._mcp.call_tool_for_result(
             "context_glossary_lookup",
             {"callerInstanceId": self._instance, "term": term},
@@ -251,9 +271,21 @@ class SemanticService:
         return GlossaryTerm.from_dict(data)
 
     async def glossary_list(self, domain: str | None = None) -> list[GlossaryTerm]:
-        """List active glossary terms, optionally filtered by domain
-        (cs | merch | supply_chain | finance | general). Returns [] when
-        the Context Service feature is disabled."""
+        """List active glossary terms.
+
+        Args:
+            domain: Optional filter. One of `"cs"`, `"merch"`, `"supply_chain"`,
+                `"finance"`, `"general"`. Omit for all domains.
+
+        Returns:
+            `list[GlossaryTerm]` sorted alphabetically. Empty list when the
+            Context Service feature is disabled for this tenant.
+
+        Example:
+            >>> # Build a dynamic system-prompt preamble for a CS agent
+            >>> terms = await ctx.semantic.glossary_list(domain="cs")
+            >>> definitions = "\\n".join(f"- {t.name}: {t.definition}" for t in terms)
+        """
         args: dict[str, Any] = {"callerInstanceId": self._instance}
         if domain is not None:
             args["domain"] = domain
@@ -268,16 +300,41 @@ class SemanticService:
         return [GlossaryTerm.from_dict(t) for t in data]
 
     async def ontology_lookup(self, entity_name: str) -> OntologyEntity | None:
-        """Look up a business entity by case-insensitive name match, with
-        synonym fallback. Returns None if the entity is unknown to this
-        tenant or the Context Service feature is disabled.
+        """Look up a business entity from the tenant ontology.
 
-        The returned entity's `properties` dict is parsed JSON — for the
-        customer entity under the thin-semantic model (migration 115) it
-        carries `identity.primary` + `identity.fallbacks[]` + `key_attributes`.
-        See wiki/concepts/ontology.md §Worked scenario for how agents
-        iterate the identity list to resolve a customer across any backing
-        vendor the operator has bound.
+        Args:
+            entity_name: Canonical name (e.g. `"customer"`, `"order"`,
+                `"sku"`). Case-insensitive match; synonyms are searched.
+
+        Returns:
+            `OntologyEntity` with `properties` already parsed from JSON, or
+            `None` if the entity is unknown or the Context Service feature
+            is disabled.
+
+        For the `customer` entity under the thin-semantic model (migration 115),
+        `properties` carries:
+
+        ```json
+        {
+          "identity": {
+            "primary":   {"field": "email", "capability": "customers.lookup_by_email"},
+            "fallbacks": [
+              {"field": "loyalty_id", "capability": "customers.lookup_by_loyalty_id"}
+            ]
+          },
+          "key_attributes": {"vip_tier": {"type": "enum", "values": ["bronze", "silver", "gold"]}}
+        }
+        ```
+
+        Example:
+            >>> # Resolve a customer by iterating identity strategies
+            >>> entity = await ctx.semantic.ontology_lookup("customer")
+            >>> if entity:
+            ...     primary = entity.properties["identity"]["primary"]
+            ...     customer = await ctx.capability.call(
+            ...         primary["capability"],
+            ...         **{primary["field"]: inbound.email},
+            ...     )
         """
         raw = await self._mcp.call_tool_for_result(
             "context_ontology_resolve",
@@ -291,9 +348,23 @@ class SemanticService:
         return OntologyEntity.from_dict(data)
 
     async def skills_get(self, name: str) -> Skill | None:
-        """Fetch a skill by name with its ordered steps hydrated. Returns
-        None if the skill is unknown, archived, or the Context Service
-        feature is disabled."""
+        """Fetch a skill with its ordered steps.
+
+        Args:
+            name: Skill name (e.g. `"evaluate_refund_eligibility"`).
+
+        Returns:
+            `Skill` with its `steps` hydrated, or `None` if the skill is
+            unknown, archived, or the Context Service feature is disabled.
+            Steps are ordered by `step_order` ascending.
+
+        Example:
+            >>> # Run a tenant-authored playbook deterministically
+            >>> skill = await ctx.semantic.skills_get("evaluate_refund_eligibility")
+            >>> if skill:
+            ...     for step in skill.steps:
+            ...         await run_step(step, ctx)  # agent-side skill runner
+        """
         raw = await self._mcp.call_tool_for_result(
             "context_skills_get",
             {"callerInstanceId": self._instance, "skillName": name},
@@ -306,17 +377,34 @@ class SemanticService:
         return Skill.from_dict(data)
 
     async def cluster_pass_rates(self, agent_id: str) -> dict[str, ClusterPassRate]:
-        """Return per-cluster pass rates from the most recent harness run
-        for an agent (ADR-037 M13 W3-B).
+        """Fetch per-cluster pass rates from the most recent eval harness run.
 
-        agent_id is the agent *package* UUID — the id recorded on
-        tenant_context_evaluation.agent_id when the goldens were seeded,
-        not an instance id. Pass the ticket-handling agent's package id
-        (see tenant_agent_instances.agent_id ↔ agent_packages.agent_id).
+        Enables cluster-aware autopilot gating (ADR-037 M13 W3-B): an agent
+        can refuse to autopilot on tickets in a cluster whose recent pass
+        rate is below a configured threshold.
 
-        Returns an empty dict when no eval runs exist yet, when the
-        agent_id is unknown, or when the Context Service feature is
-        disabled for this tenant."""
+        Args:
+            agent_id: The agent **package** UUID (not an instance ID) —
+                the id recorded on `tenant_context_evaluation.agent_id`
+                when the goldens were seeded. Map from an instance via
+                `tenant_agent_instances.agent_id ↔ agent_packages.agent_id`.
+
+        Returns:
+            Dict keyed by cluster tag. Empty when:
+            - No eval runs exist yet
+            - The `agent_id` is unknown
+            - The Context Service feature is disabled for this tenant
+
+        Example:
+            >>> # Gate autopilot by cluster pass rate
+            >>> rates = await ctx.semantic.cluster_pass_rates(agent_package_id)
+            >>> cluster = classify_ticket(ticket)
+            >>> rate = rates.get(cluster)
+            >>> if rate and rate.pass_rate >= 0.9 and rate.total >= 10:
+            ...     send_autopilot_reply()
+            >>> else:
+            ...     await ctx.human.request(kind="draft-reply", tier="T1", ...)
+        """
         raw = await self._mcp.call_tool_for_result(
             "context_evaluation_cluster_pass_rates",
             {"callerInstanceId": self._instance, "agentId": agent_id},
@@ -333,11 +421,26 @@ class SemanticService:
     async def cluster_pass_rate(
         self, agent_id: str, cluster_tag: str,
     ) -> ClusterPassRate | None:
-        """Return the pass-rate snapshot for ONE cluster — the shape the
-        autopilot gate consumes. Thin wrapper over cluster_pass_rates:
-        the kernel still fetches the full map (one DB round-trip either
-        way) but the caller gets exactly the key it asked for, or None
-        if that cluster has no eval data yet."""
+        """Fetch the pass-rate snapshot for ONE cluster.
+
+        Thin convenience wrapper over `cluster_pass_rates()`. The kernel
+        still fetches the full map (one DB round-trip either way), but
+        callers that only want one cluster get a cleaner call site.
+
+        Args:
+            agent_id: Agent package UUID (see `cluster_pass_rates()`).
+            cluster_tag: Cluster to fetch (e.g. `"refund-eligible"`,
+                `"refund-ineligible"`).
+
+        Returns:
+            `ClusterPassRate` for the cluster, or `None` if no eval data
+            exists for that cluster yet (or the feature is disabled).
+
+        Example:
+            >>> rate = await ctx.semantic.cluster_pass_rate(agent_id, "refund-eligible")
+            >>> if rate and rate.pass_rate >= 0.9:
+            ...     ...  # autopilot gate pass
+        """
         m = await self.cluster_pass_rates(agent_id)
         return m.get(cluster_tag)
 
