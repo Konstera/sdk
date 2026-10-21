@@ -4,6 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "outDir": "./dist/esm",
-    "declaration": false
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
   }
 }
