@@ -1,6 +1,6 @@
 {
   "name": "konstera-sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript SDK for building Konstera agents. Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing. Mirror of konstera-sdk (Python) and Konstera.Sdk (.NET).",
   "license": "BUSL-1.1",
   "author": "Konstera",
