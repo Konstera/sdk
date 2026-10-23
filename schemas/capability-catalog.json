@@ -1,5 +1,197 @@
 {
   "$schema": "https://konstera.ai/schemas/capability-catalog.v1.json",
+  "$defs": {
+    "canonicalOrder": {
+      "type": "object",
+      "required": [
+        "orderId"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "qty": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "sku": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "total": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Customer-facing order number"
+        },
+        "currency": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "placedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "tracking": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "carrier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "shippedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "customerEmail": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "For ownership checks only â€” never shown to a customer"
+        },
+        "fulfilmentStatus": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "canonicalTicket": {
+      "type": "object",
+      "required": [
+        "ticketId",
+        "threadId",
+        "subject",
+        "status"
+      ],
+      "properties": {
+        "to": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "thread": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "externalMessageId",
+              "author",
+              "body",
+              "sentAt"
+            ],
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "sentAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "bodyHtml": {
+                "type": "string"
+              },
+              "isPrivate": {
+                "type": "boolean",
+                "default": false,
+                "description": "True for internal notes; mirrored into messages.is_internal"
+              },
+              "authorKind": {
+                "enum": [
+                  "customer",
+                  "agent",
+                  "system"
+                ],
+                "type": "string",
+                "description": "Who the ticket system logs as the author"
+              },
+              "externalMessageId": {
+                "type": "string",
+                "description": "Ticket-system id, used as the dedup key during mirror sync (ADR-022)"
+              }
+            }
+          }
+        },
+        "subject": {
+          "type": "string"
+        },
+        "threadId": {
+          "type": "string",
+          "description": "Stable id used for workflow dedup â€” same thread always same id"
+        },
+        "ticketId": {
+          "type": "string"
+        }
+      }
+    }
+  },
   "version": 1,
   "description": "Canonical Konstera capability catalogue. Edit this file to add/change a capability, then run `platform/scripts/generate-catalog-migration.py` to refresh migration 117. ADR-013.",
   "capabilities": [
