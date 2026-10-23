@@ -1,0 +1,221 @@
+{
+  "$schema": "https://konstera.ai/schemas/connector-catalog.v1.json",
+  "version": "1",
+  "description": "Konstera connector catalogue — the vendor adapters that implement one or more canonical capabilities from capability-catalog.json. A tenant binds exactly one connector to each capability they want their agents to call. New connectors land here as they ship; `capabilities` lists what the connector implements today.",
+  "categories": {
+    "commerce": "E-commerce platforms + order-management systems (Shopify, BigCommerce, NetSuite).",
+    "support": "Customer-support ticketing + help-desk (Zendesk, Freshdesk, Intercom).",
+    "chat": "Team-chat platforms (Slack, Microsoft Teams).",
+    "code": "Source code hosting + review (GitHub, Azure DevOps).",
+    "cloud": "Public-cloud control planes (Azure, AWS, Google Cloud).",
+    "files": "File storage / collaboration (OneDrive, SharePoint)."
+  },
+  "connectors": [
+    {
+      "id": "shopify",
+      "name": "Shopify",
+      "category": "commerce",
+      "vendor": "Shopify Inc.",
+      "homepage": "https://www.shopify.com",
+      "description": "Shopify Admin API + webhooks. The canonical e-commerce reference connector for Konstera.",
+      "capabilities": [
+        "customers.lookup_by_email",
+        "orders.lookup_by_email"
+      ]
+    },
+    {
+      "id": "bigcommerce",
+      "name": "BigCommerce",
+      "category": "commerce",
+      "vendor": "BigCommerce Inc.",
+      "homepage": "https://www.bigcommerce.com",
+      "description": "BigCommerce v3 REST API.",
+      "capabilities": [
+        "orders.lookup_by_email"
+      ]
+    },
+    {
+      "id": "bettercommerce",
+      "name": "BetterCommerce",
+      "category": "commerce",
+      "vendor": "BetterCommerce",
+      "homepage": "https://www.bettercommerce.io",
+      "description": "BetterCommerce headless commerce platform.",
+      "capabilities": [
+        "customers.lookup_by_email",
+        "customers.recent_returns"
+      ]
+    },
+    {
+      "id": "woocommerce",
+      "name": "WooCommerce",
+      "category": "commerce",
+      "vendor": "Automattic",
+      "homepage": "https://woocommerce.com",
+      "description": "WooCommerce REST API (self-hosted and WordPress-hosted).",
+      "capabilities": [
+        "orders.lookup_by_email"
+      ]
+    },
+    {
+      "id": "netsuite",
+      "name": "NetSuite",
+      "category": "commerce",
+      "vendor": "Oracle NetSuite",
+      "homepage": "https://www.netsuite.com",
+      "description": "Oracle NetSuite SuiteTalk REST API. Covers orders for omnichannel / back-office retail.",
+      "capabilities": [
+        "orders.lookup_by_email"
+      ]
+    },
+    {
+      "id": "zendesk",
+      "name": "Zendesk",
+      "category": "support",
+      "vendor": "Zendesk Inc.",
+      "homepage": "https://www.zendesk.com",
+      "description": "Zendesk Support + Help Center. Serves as tickets implementer and knowledge-base source; also used as a customer-record fallback when the commerce connector lacks the customer.",
+      "capabilities": [
+        "tickets.list_new",
+        "customers.lookup_by_email",
+        "knowledge.search"
+      ]
+    },
+    {
+      "id": "freshdesk",
+      "name": "Freshdesk",
+      "category": "support",
+      "vendor": "Freshworks",
+      "homepage": "https://www.freshworks.com/freshdesk/",
+      "description": "Freshdesk ticketing + help-desk. Used as a tickets implementer and a customer-record fallback.",
+      "capabilities": [
+        "tickets.list_new",
+        "customers.lookup_by_email"
+      ]
+    },
+    {
+      "id": "intercom",
+      "name": "Intercom",
+      "category": "support",
+      "vendor": "Intercom Inc.",
+      "homepage": "https://www.intercom.com",
+      "description": "Intercom Articles for help-centre search.",
+      "capabilities": [
+        "knowledge.search"
+      ]
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "category": "chat",
+      "vendor": "Slack Technologies (Salesforce)",
+      "homepage": "https://slack.com",
+      "description": "Slack Web API + Events API. Threaded message handling + reaction-based acknowledgement.",
+      "capabilities": [
+        "chat.list_new",
+        "chat.reply",
+        "notifications.send"
+      ]
+    },
+    {
+      "id": "microsoft-teams",
+      "name": "Microsoft Teams",
+      "category": "chat",
+      "vendor": "Microsoft",
+      "homepage": "https://www.microsoft.com/microsoft-teams/",
+      "description": "Microsoft Teams Graph API + outgoing webhooks. Replies via webhook (not natively threaded).",
+      "capabilities": [
+        "chat.list_new",
+        "chat.reply",
+        "notifications.send"
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "category": "code",
+      "vendor": "GitHub Inc. (Microsoft)",
+      "homepage": "https://github.com",
+      "description": "GitHub REST + GraphQL APIs. Primary code-hosting connector; implements repository / pull-request / issue surfaces.",
+      "capabilities": [
+        "code.get_file",
+        "code.search",
+        "pull_requests.list",
+        "repos.list"
+      ]
+    },
+    {
+      "id": "azure-devops",
+      "name": "Azure DevOps",
+      "category": "code",
+      "vendor": "Microsoft",
+      "homepage": "https://azure.microsoft.com/en-us/products/devops",
+      "description": "Azure DevOps Services REST API. Code hosting + PRs for enterprises using the Microsoft stack.",
+      "capabilities": [
+        "code.get_file",
+        "pull_requests.list",
+        "repos.list"
+      ]
+    },
+    {
+      "id": "azure",
+      "name": "Azure",
+      "category": "cloud",
+      "vendor": "Microsoft",
+      "homepage": "https://azure.microsoft.com",
+      "description": "Azure Resource Manager + Cost Management + Service Health APIs for cross-tenant cloud observability.",
+      "capabilities": [
+        "cloud.costs.summary",
+        "cloud.health.events",
+        "cloud.resources.list"
+      ]
+    },
+    {
+      "id": "aws",
+      "name": "AWS",
+      "category": "cloud",
+      "vendor": "Amazon Web Services",
+      "homepage": "https://aws.amazon.com",
+      "description": "AWS Cost Explorer + Health + Resource Groups APIs. Health events require Business or Enterprise support plan.",
+      "capabilities": [
+        "cloud.costs.summary",
+        "cloud.health.events",
+        "cloud.resources.list"
+      ]
+    },
+    {
+      "id": "google-cloud",
+      "name": "Google Cloud",
+      "category": "cloud",
+      "vendor": "Google",
+      "homepage": "https://cloud.google.com",
+      "description": "Google Cloud Service Health + Asset Inventory. Cost coverage pending.",
+      "capabilities": [
+        "cloud.health.events",
+        "cloud.resources.list"
+      ]
+    },
+    {
+      "id": "onedrive",
+      "name": "OneDrive",
+      "category": "files",
+      "vendor": "Microsoft",
+      "homepage": "https://www.microsoft.com/microsoft-365/onedrive/",
+      "description": "OneDrive for Business via Microsoft Graph. File listing + search inside a user's drive.",
+      "capabilities": [
+        "files.search"
+      ]
+    },
+    {
+      "id": "sharepoint",
+      "name": "SharePoint",
+      "category": "files",
+      "vendor": "Microsoft",
+      "homepage": "https://www.microsoft.com/microsoft-365/sharepoint/",
+      "description": "SharePoint Online via Microsoft Graph. Document libraries + site search.",
+      "capabilities": [
+        "files.search"
+      ]
+    }
+  ]
+}
