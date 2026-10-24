@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Vendored at build time via scripts/copy-catalogue.mjs
+src/data/
+*.log
+*.tsbuildinfo

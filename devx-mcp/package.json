@@ -1,0 +1,41 @@
+{
+  "name": "@konstera/devx-mcp",
+  "version": "0.1.0",
+  "description": "Konstera DevX MCP server — exposes the capability catalogue as MCP tools so coding agents (Claude Desktop, Cursor, Windsurf, Claude Code) can discover + browse what ctx.capability.* can call without context-dumping the docs.",
+  "license": "Apache-2.0",
+  "author": "Konstera",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Konstera/sdk.git",
+    "directory": "devx-mcp"
+  },
+  "homepage": "https://konstera.ai/docs/build-with-claude-code",
+  "keywords": ["konstera", "mcp", "devx", "agents", "capability", "catalogue"],
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "konstera-devx-mcp": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "copy:catalogue": "node scripts/copy-catalogue.mjs",
+    "prebuild": "npm run copy:catalogue",
+    "build": "tsc",
+    "start": "node dist/bin.js",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
