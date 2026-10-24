@@ -47,6 +47,30 @@ public sealed class SemanticService
         return element.Deserialize<GlossaryTerm>(Json.Options);
     }
 
+    /// <summary>
+    /// Look up a glossary term by its stable record ID. Use this for
+    /// deterministic replay of past invocations — the agent records a term's
+    /// ID (not name) in its output, and a later replay resolves the same
+    /// record even if the term has since been renamed or edited by the tenant.
+    /// Requires platform support for the <c>context_glossary_lookup_by_id</c>
+    /// MCP tool; returns null gracefully if the kernel doesn't yet expose it.
+    /// </summary>
+    public async Task<GlossaryTerm?> GlossaryLookupByIdAsync(string id, CancellationToken ct = default)
+    {
+        var raw = await _mcp.CallToolForResultAsync(
+            "context_glossary_lookup_by_id",
+            new Dictionary<string, object?>
+            {
+                ["callerInstanceId"] = _instanceId,
+                ["id"] = id,
+            },
+            ct);
+        if (string.IsNullOrEmpty(raw) || raw == "null") return null;
+        var element = JsonDocument.Parse(raw).RootElement;
+        if (IsFeatureDisabled(element)) return null;
+        return element.Deserialize<GlossaryTerm>(Json.Options);
+    }
+
     /// <summary>List active glossary terms, optionally filtered by domain.</summary>
     public async Task<IReadOnlyList<GlossaryTerm>> GlossaryListAsync(
         string? domain = null,

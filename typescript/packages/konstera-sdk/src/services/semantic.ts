@@ -89,6 +89,29 @@ export class SemanticService {
     return parseGlossaryTerm(data as Record<string, unknown>);
   }
 
+  /**
+   * Look up a glossary term by its stable record ID.
+   *
+   * Use this for deterministic replay of past invocations: when the agent
+   * records a term's ID (not name) in its output, a later replay resolves
+   * the same record even if the term has since been renamed or edited.
+   *
+   * Requires platform support for the `context_glossary_lookup_by_id` MCP
+   * tool. Returns null gracefully if the kernel doesn't yet expose it.
+   */
+  async glossaryLookupById(id: string): Promise<GlossaryTerm | null> {
+    const result = await this.mcp.callTool("context_glossary_lookup_by_id", {
+      callerInstanceId: this.instanceId,
+      id,
+    });
+    if (result.disabled) return null;
+    const text = extractText(result.content);
+    if (!text || text === "null") return null;
+    const data = JSON.parse(text) as unknown;
+    if (isFeatureDisabled(data)) return null;
+    return parseGlossaryTerm(data as Record<string, unknown>);
+  }
+
   /** List active glossary terms, optionally filtered by domain. */
   async glossaryList(domain?: string): Promise<GlossaryTerm[]> {
     const args: Record<string, unknown> = { callerInstanceId: this.instanceId };

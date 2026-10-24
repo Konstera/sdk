@@ -1,24 +1,30 @@
-"""CostService — record non-LLM cost events.
+"""CostService — record non-LLM cost events + read rolling spend summaries.
 
-Thin service — one method with many optional fields. Tests verify every
-optional field is only sent when provided (so the kernel doesn't see
-nulls where it expects omission).
+Record: one method with many optional fields. Tests verify every optional
+field is only sent when provided (so the kernel doesn't see nulls where
+it expects omission).
+
+Summary: fetch a rolling cost window for this instance. Tests verify arg
+packing, feature-off / empty-response handling, and the from_dict parse.
 """
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from konstera_sdk.cost import CostService
+import pytest
+
+from konstera_sdk.cost import CostService, CostSummary
 
 
 class RecordingMcp:
-    def __init__(self):
+    def __init__(self, responses: dict[str, str] | None = None):
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self._responses = responses or {}
 
     async def call_tool_for_result(self, tool: str, args: dict[str, Any]) -> str:
         self.calls.append((tool, args))
-        return ""
+        return self._responses.get(tool, "")
 
 
 class TestRecord:
@@ -106,3 +112,68 @@ class TestRecord:
         args = mcp.calls[0][1]
         assert args["inputTokens"] == 0
         assert args["outputTokens"] == 0
+
+
+class TestSummary:
+    async def test_default_window_hours_is_24(self):
+        payload = {
+            "window_hours": 24,
+            "since": "2026-01-01T00:00:00Z",
+            "until": "2026-01-02T00:00:00Z",
+            "total_usd": 1.23,
+            "by_kind": {"llm": 1.0, "tool": 0.23},
+        }
+        mcp = RecordingMcp(responses={"cost_summary": json.dumps(payload)})
+        cost = CostService(mcp, "inst-1")  # type: ignore[arg-type]
+
+        summary = await cost.summary()
+
+        assert summary is not None
+        assert summary.window_hours == 24
+        assert summary.total_usd == 1.23
+        assert summary.by_kind == {"llm": 1.0, "tool": 0.23}
+        tool, args = mcp.calls[0]
+        assert tool == "cost_summary"
+        assert args == {"instanceId": "inst-1", "windowHours": 24}
+
+    async def test_custom_window_hours_sent(self):
+        mcp = RecordingMcp(
+            responses={
+                "cost_summary": json.dumps(
+                    {"window_hours": 1, "since": "x", "until": "y", "total_usd": 0.0, "by_kind": {}}
+                )
+            }
+        )
+        cost = CostService(mcp, "inst-1")  # type: ignore[arg-type]
+        await cost.summary(window_hours=1)
+        assert mcp.calls[0][1]["windowHours"] == 1
+
+    async def test_window_hours_below_one_raises(self):
+        cost = CostService(RecordingMcp(), "inst-1")  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="window_hours must be >= 1"):
+            await cost.summary(window_hours=0)
+
+    async def test_empty_response_returns_none(self):
+        mcp = RecordingMcp(responses={"cost_summary": ""})
+        cost = CostService(mcp, "inst-1")  # type: ignore[arg-type]
+        assert await cost.summary() is None
+
+    async def test_null_response_returns_none(self):
+        mcp = RecordingMcp(responses={"cost_summary": "null"})
+        cost = CostService(mcp, "inst-1")  # type: ignore[arg-type]
+        assert await cost.summary() is None
+
+    async def test_non_dict_response_returns_none(self):
+        """Defensive: if the kernel ever returns a scalar / array (e.g. a
+        feature-disabled list), fall through to None rather than crash."""
+        mcp = RecordingMcp(responses={"cost_summary": "[]"})
+        cost = CostService(mcp, "inst-1")  # type: ignore[arg-type]
+        assert await cost.summary() is None
+
+    async def test_from_dict_tolerates_missing_fields(self):
+        """CostSummary.from_dict shouldn't crash on partial payloads during
+        schema evolution — defaults kick in for every field."""
+        s = CostSummary.from_dict({})
+        assert s.window_hours == 0
+        assert s.total_usd == 0.0
+        assert s.by_kind == {}
