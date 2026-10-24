@@ -231,6 +231,46 @@ class TestGlossaryLookup:
         assert await sem.glossary_lookup("revenue") is None
 
 
+class TestGlossaryLookupById:
+    async def test_sends_caller_instance_id_and_id(self):
+        mcp = RecordingMcp(
+            responses={
+                "context_glossary_lookup_by_id": json.dumps(_glossary_term_dict(id="term-xyz")),
+            },
+        )
+        sem = SemanticService(mcp, "inst-1")  # type: ignore[arg-type]
+
+        result = await sem.glossary_lookup_by_id("term-xyz")
+
+        assert result is not None
+        assert result.id == "term-xyz"
+        assert mcp.calls == [
+            ("context_glossary_lookup_by_id", {"callerInstanceId": "inst-1", "id": "term-xyz"})
+        ]
+
+    async def test_returns_none_for_empty_response(self):
+        mcp = RecordingMcp(responses={"context_glossary_lookup_by_id": ""})
+        sem = SemanticService(mcp, "inst-1")  # type: ignore[arg-type]
+        assert await sem.glossary_lookup_by_id("missing-id") is None
+
+    async def test_returns_none_for_null_response(self):
+        mcp = RecordingMcp(responses={"context_glossary_lookup_by_id": "null"})
+        sem = SemanticService(mcp, "inst-1")  # type: ignore[arg-type]
+        assert await sem.glossary_lookup_by_id("missing-id") is None
+
+    async def test_feature_disabled_envelope_returns_none(self):
+        envelope = {
+            "status": "feature_disabled",
+            "feature": "context_service",
+            "upgrade_hint": "Enable in Settings → Features.",
+        }
+        mcp = RecordingMcp(
+            responses={"context_glossary_lookup_by_id": json.dumps(envelope)},
+        )
+        sem = SemanticService(mcp, "inst-1")  # type: ignore[arg-type]
+        assert await sem.glossary_lookup_by_id("term-xyz") is None
+
+
 class TestGlossaryList:
     async def test_lists_without_domain_filter(self):
         terms = [_glossary_term_dict(id=f"t-{i}", name=f"term_{i}") for i in range(3)]

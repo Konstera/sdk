@@ -270,6 +270,43 @@ class SemanticService:
             return None
         return GlossaryTerm.from_dict(data)
 
+    async def glossary_lookup_by_id(self, id: str) -> GlossaryTerm | None:
+        """Look up a glossary term by its stable record ID.
+
+        Use this for **deterministic replay** of past invocations: when the
+        agent records a term's ID (not name) in its output, a later replay
+        resolves the same record even if the term has since been renamed or
+        edited by the tenant.
+
+        Args:
+            id: The term's stable `id` field (as returned on earlier
+                `glossary_lookup` / `glossary_list` calls). Not the name.
+
+        Returns:
+            `GlossaryTerm` with the authoritative definition + metadata, or
+            `None` if (a) no term with this ID exists on the tenant, or (b)
+            the Context Service feature is disabled for this tenant (ADR-039
+            — the SDK translates the kernel's feature-disabled envelope into
+            None so agents branch on data availability without special-casing).
+
+        Requires platform support for the ``context_glossary_lookup_by_id``
+        MCP tool. Returns None gracefully if the kernel doesn't yet expose it.
+
+        Example:
+            >>> # Replay flow — resolve the exact record active at run time
+            >>> term = await ctx.semantic.glossary_lookup_by_id(prior_output["term_id"])
+        """
+        raw = await self._mcp.call_tool_for_result(
+            "context_glossary_lookup_by_id",
+            {"callerInstanceId": self._instance, "id": id},
+        )
+        if not raw or raw == "null":
+            return None
+        data = json.loads(raw)
+        if _is_feature_disabled(data, method="context_glossary_lookup_by_id"):
+            return None
+        return GlossaryTerm.from_dict(data)
+
     async def glossary_list(self, domain: str | None = None) -> list[GlossaryTerm]:
         """List active glossary terms.
 

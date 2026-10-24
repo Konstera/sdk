@@ -24,6 +24,14 @@ public sealed class SemanticTests
     }
 
     [Fact]
+    public async Task GlossaryLookupById_Requires_Kernel()
+    {
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => BuildCtx().Semantic.GlossaryLookupByIdAsync("term-xyz"));
+        Assert.Contains("KONSTERA_KERNEL_MCP_URL", ex.Message);
+    }
+
+    [Fact]
     public async Task OntologyLookup_Requires_Kernel()
     {
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(

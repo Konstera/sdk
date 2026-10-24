@@ -72,6 +72,20 @@ public sealed class ContextTests
     }
 
     [Fact]
+    public async Task CostSummary_Requires_Kernel()
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => BuildCtx().Cost.SummaryAsync(windowHours: 24));
+    }
+
+    [Fact]
+    public async Task CostSummary_Rejects_Window_Below_One()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => BuildCtx().Cost.SummaryAsync(windowHours: 0));
+    }
+
+    [Fact]
     public async Task Tool_Requires_Kernel()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(

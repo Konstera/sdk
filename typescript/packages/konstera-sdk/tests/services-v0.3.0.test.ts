@@ -63,6 +63,50 @@ describe("CostService", () => {
     expect(args["outputTokens"]).toBe(5);
     expect(JSON.parse(args["metadataJson"] as string)).toEqual({ k: "v" });
   });
+
+  test("summary parses the payload + packs windowHours", async () => {
+    const payload = {
+      window_hours: 24,
+      since: "2026-01-01T00:00:00Z",
+      until: "2026-01-02T00:00:00Z",
+      total_usd: 1.23,
+      by_kind: { llm: 1.0, tool: 0.23 },
+    };
+    const { client, calls } = mock(JSON.stringify(payload));
+    const cost = new CostService(client, "inst-1");
+
+    const summary = await cost.summary(24);
+
+    expect(summary).not.toBeNull();
+    expect(summary!.windowHours).toBe(24);
+    expect(summary!.totalUsd).toBeCloseTo(1.23);
+    expect(summary!.byKind).toEqual({ llm: 1.0, tool: 0.23 });
+    expect(calls[0]).toEqual({
+      name: "cost_summary",
+      args: { instanceId: "inst-1", windowHours: 24 },
+    });
+  });
+
+  test("summary default windowHours is 24", async () => {
+    const { calls, client } = mock(
+      JSON.stringify({ window_hours: 24, since: "", until: "", total_usd: 0, by_kind: {} }),
+    );
+    const cost = new CostService(client, "inst-1");
+    await cost.summary();
+    expect(calls[0]!.args["windowHours"]).toBe(24);
+  });
+
+  test("summary throws when windowHours < 1", async () => {
+    const { client } = mock();
+    const cost = new CostService(client, "inst-1");
+    await expect(cost.summary(0)).rejects.toThrow("windowHours must be >= 1");
+  });
+
+  test("summary returns null on empty / null response", async () => {
+    const { client } = mock(null);
+    const cost = new CostService(client, "inst-1");
+    expect(await cost.summary()).toBeNull();
+  });
 });
 
 describe("ToolService", () => {
@@ -342,6 +386,36 @@ describe("SemanticService", () => {
     expect(term?.canonicalUnit).toBe("days");
   });
 
+  test("glossaryLookupById packs the id arg + parses the term", async () => {
+    const { client, calls } = mock(
+      JSON.stringify({
+        id: "term-xyz",
+        name: "refund_window_days",
+        definition: "30-day window",
+        synonyms: [],
+        version: 2,
+        status: "active",
+        repository_id: "r",
+        repository_name: "cs",
+        updated_at: "2026-10-20",
+      }),
+    );
+    const sem = new SemanticService(client, "inst-1");
+    const term = await sem.glossaryLookupById("term-xyz");
+    expect(term?.id).toBe("term-xyz");
+    expect(term?.version).toBe(2);
+    expect(calls[0]).toEqual({
+      name: "context_glossary_lookup_by_id",
+      args: { callerInstanceId: "inst-1", id: "term-xyz" },
+    });
+  });
+
+  test("glossaryLookupById returns null on empty response", async () => {
+    const { client } = mock(null);
+    const sem = new SemanticService(client, "inst-1");
+    expect(await sem.glossaryLookupById("missing")).toBeNull();
+  });
+
   test("ontologyLookup parses properties JSON string", async () => {
     const props = { identity: { primary: { field: "email" } } };
     const { client } = mock(
@@ -364,6 +438,7 @@ describe("SemanticService", () => {
     const { client } = mock(JSON.stringify({ status: "feature_disabled" }));
     const sem = new SemanticService(client, "inst-1");
     expect(await sem.glossaryLookup("x")).toBeNull();
+    expect(await sem.glossaryLookupById("x")).toBeNull();
     expect(await sem.glossaryList()).toEqual([]);
     expect(await sem.ontologyLookup("x")).toBeNull();
     expect(await sem.skillsGet("x")).toBeNull();
