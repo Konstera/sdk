@@ -3,33 +3,41 @@
 // emits .js regardless of module format; renaming post-build is the
 // standard dual-build fix.
 
-import { readdirSync, renameSync, copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { join, extname } from "node:path";
+import { readdirSync, readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 
 const DIST = "dist";
 const CJS = join(DIST, "cjs");
 const ESM = join(DIST, "esm");
 
-function renameAllInDir(dir, fromExt, toExt) {
+// Relative specifiers ("./agent.js", "../services/cost.js") inside the emitted
+// code still say .js after the rename, so they must be rewritten too or every
+// import of a sibling module fails at runtime.
+const RELATIVE_JS = /(["'])(\.{1,2}\/[^"']+?)\.js\1/g;
+
+function renameAllInDir(dir, toExt) {
   if (!existsSync(dir)) return;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      renameAllInDir(full, fromExt, toExt);
-    } else if (extname(entry.name) === fromExt) {
-      const target = full.slice(0, -fromExt.length) + toExt;
-      renameSync(full, target);
+      renameAllInDir(full, toExt);
+    } else if (entry.name.endsWith(".js.map")) {
+      renameSync(full, full.slice(0, -".js.map".length) + `${toExt}.map`);
+    } else if (entry.name.endsWith(".js")) {
+      const code = readFileSync(full, "utf8")
+        .replace(RELATIVE_JS, `$1$2${toExt}$1`)
+        .replace(/(\/\/# sourceMappingURL=.+?)\.js\.map/, `$1${toExt}.map`);
+      writeFileSync(full.slice(0, -".js".length) + toExt, code);
+      rmSync(full);
     }
   }
 }
 
 // Rename CJS .js -> .cjs
-renameAllInDir(CJS, ".js", ".cjs");
-renameAllInDir(CJS, ".js.map", ".cjs.map");
+renameAllInDir(CJS, ".cjs");
 
 // Rename ESM .js -> .mjs
-renameAllInDir(ESM, ".js", ".mjs");
-renameAllInDir(ESM, ".js.map", ".mjs.map");
+renameAllInDir(ESM, ".mjs");
 
 // Hoist from dist/cjs/* and dist/esm/* up to dist/* so the exports field is clean.
 function copyUp(sourceDir, destDir) {

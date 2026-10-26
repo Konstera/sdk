@@ -11,7 +11,7 @@ This repo publishes **seven packages across three registries**. Each package has
 | `konstera-sdk` (Python) | 0.6.0 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
 | `konstera-sdk-contexts` (Python) | 1.0.0 | `sdk-python-contexts-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
 | `konstera-sdk` (TS) | 0.4.0 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
-| `konstera-sdk-contexts` (TS) | 1.0.0 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+| `konstera-sdk-contexts` (TS) | 1.0.1 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
 | `@konstera/devx-mcp` | 0.1.0 | `devx-mcp-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
 
 ## Release process
