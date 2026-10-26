@@ -73,20 +73,22 @@ git push origin sdk-python-v0.5.1
 
 These are **one-time** per registry. Secret names must match the workflow references exactly.
 
-### NuGet — API key
+### NuGet — trusted publishing (no API key)
 
-1. Sign in to [nuget.org](https://www.nuget.org/) as a user with push rights on `Konstera.*`.
-2. Create an API key at `/account/apikeys`:
-   - Key name: `Konstera.Sdk + Contexts (GitHub Actions)`
-   - Scope: Push
-   - Package owner: (your Konstera owner account)
-   - Glob pattern: `Konstera.*`
-   - Expiration: 365 days (reminder in RELEASING.md to rotate)
-3. In GitHub repo settings → Secrets → Actions, create:
-   - Name: `NUGET_API_KEY`
-   - Value: (the API key from step 2)
+nuget.org redirects `/account/apikeys` to Trusted Publishing and discourages API keys for CI. The workflow's `NuGet/login` step exchanges the job's GitHub OIDC token for a short-lived API key, so there is no secret to store or rotate.
 
-Rotation: NuGet keys expire. Rotate before expiry and update the secret.
+1. Sign in to [nuget.org](https://www.nuget.org/) as an **admin of the `Konstera` organization** (currently `masood.ahmad`). Packages must be owned by the org, never by a personal account.
+2. At `/account/trustedpublishing`, create a policy:
+   - Policy name: `Konstera SDK (GitHub Actions)`
+   - Package owner: **`Konstera`** (the organization)
+   - Repository owner / repository: `Konstera` / `sdk`
+   - Workflow file: `release-dotnet.yml`
+   - Environment: (blank, because the dotnet jobs don't use one)
+   - Scope: Push → *Push new packages and package versions*; glob `Konstera.*`
+3. A new policy must be **used within 7 days** to become permanent. Otherwise click **Activate for 7 days** on the same page and publish within the window.
+4. `release-dotnet.yml` passes `user: masood.ahmad` to `NuGet/login`. That is the nuget.org user who **created** the policy, not the package owner. If someone else recreates the policy, change that line to their username.
+
+No GitHub secret is needed. Both jobs need `permissions: id-token: write`, which is already set.
 
 ### PyPI — OIDC trusted publisher (no long-lived token)
 
@@ -147,6 +149,9 @@ Pre-release suffixes (`-rc1`, `-alpha.1`) are **not supported** by the current w
 ### Workflow fails with "version mismatch"
 The git tag version doesn't match the version in the package metadata file. Either (a) bump the metadata and re-tag, or (b) delete the mismatched tag and push a correct one. The verify step is intentional — it prevents accidentally publishing a 0.5.1 tagged as `sdk-python-v0.5.0`.
 
+### NuGet login step fails
+The trusted publishing policy is missing, inactive (not used within 7 days of creation), or doesn't match the repo, workflow file, or the workflow's `user:` isn't the user who created the policy; or the job lacks `id-token: write`. Check the policy at nuget.org/account/trustedpublishing and use **Activate for 7 days** if it has lapsed.
+
 ### NuGet publish fails with 409 Conflict
 Version already published. NuGet forbids overwriting a version. Bump to a new patch and re-tag. The workflow uses `--skip-duplicate` so a re-run with the SAME tag succeeds (no-op), but a new tag with the SAME version fails here.
 
@@ -184,7 +189,8 @@ Then push a correct tag. If the workflow already ran and published to NuGet or P
 
 ## Future hardening (post-v1.0)
 
-- **Migrate npm to OIDC trusted publishing** once each npm package is published once with the token flow.- **Add provenance signing to NuGet packages** when NuGet.org gains OIDC support (as of 2026-10, not available).
+- **Migrate npm to OIDC trusted publishing** once each npm package is published once with the token flow.
+- **Sign NuGet packages** (author or repository signing). Trusted publishing only replaces the API key; it doesn't sign the package.
 - **Automated changelog** derived from Conventional Commits — currently relying on `generate_release_notes: true` which uses PR titles.
 - **Cross-package version lockstep check** for context packs — a CI job that fails if the three contexts packages' versions don't match `schemas/standard-context-pack-v1.json`'s version.
 - **Pre-release channel** (`-rc1`, `-alpha.1`) support with a separate workflow or tag matcher.

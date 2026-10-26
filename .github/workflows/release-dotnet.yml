@@ -7,7 +7,11 @@ name: release-dotnet
 #   sdk-dotnet-contexts-v<X.Y.Z>  -> publishes Konstera.Sdk.Contexts
 #
 # Required secrets (one-time setup, see RELEASING.md):
-#   NUGET_API_KEY  — nuget.org API key with push permission on both packages
+#   None. NuGet trusted publishing: NuGet/login exchanges the job's GitHub
+#   OIDC token for a short-lived API key. Policy on nuget.org, created by
+#   user masood.ahmad, package owner = the Konstera organization: repo
+#   Konstera/sdk, workflow release-dotnet.yml, no environment, glob Konstera.*.
+#   See RELEASING.md.
 
 on:
   push:
@@ -22,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write  # NuGet trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -49,9 +54,25 @@ jobs:
             --configuration Release \
             --output ./nupkg
 
+      - name: Smoke-test the packed package (install + compile + run)
+        # Install the .nupkg into a fresh console app and touch a public type,
+        # so a package that packs but can't be consumed never reaches NuGet.
+        run: |
+          dotnet new console -n Smoke -o "$RUNNER_TEMP/smoke" --framework net10.0
+          cd "$RUNNER_TEMP/smoke"
+          dotnet add package Konstera.Sdk --version "${{ steps.version.outputs.version }}" --source "$GITHUB_WORKSPACE/nupkg"
+          echo 'System.Console.WriteLine(typeof(Konstera.Sdk.Agent).AssemblyQualifiedName);' > Program.cs
+          dotnet run
+
+      - name: NuGet login (trusted publishing)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: masood.ahmad  # nuget.org user who created the policy (not the package owner)
+
       - name: Push to NuGet
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push ./nupkg/*.nupkg \
             --api-key "$NUGET_API_KEY" \
@@ -77,6 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write  # NuGet trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -112,9 +134,25 @@ jobs:
             --configuration Release \
             --output ./nupkg
 
+      - name: Smoke-test the packed package (install + compile + run)
+        # Install the .nupkg into a fresh console app and touch a public type,
+        # so a package that packs but can't be consumed never reaches NuGet.
+        run: |
+          dotnet new console -n Smoke -o "$RUNNER_TEMP/smoke" --framework net10.0
+          cd "$RUNNER_TEMP/smoke"
+          dotnet add package Konstera.Sdk.Contexts --version "${{ steps.version.outputs.version }}" --source "$GITHUB_WORKSPACE/nupkg"
+          echo 'System.Console.WriteLine(typeof(Konstera.Sdk.Contexts.ContextTerms).AssemblyQualifiedName);' > Program.cs
+          dotnet run
+
+      - name: NuGet login (trusted publishing)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: masood.ahmad  # nuget.org user who created the policy (not the package owner)
+
       - name: Push to NuGet
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push ./nupkg/*.nupkg \
             --api-key "$NUGET_API_KEY" \
