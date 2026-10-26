@@ -2,7 +2,7 @@
 
 The agent-authoring tool for the Konstera platform. Scaffold, validate, build, and deploy agents from the command line.
 
-**Status**: v0.1 scaffold shipping. `konstera version` + `konstera manifest validate` work today; everything else is stubbed and prints a pointer to the manual path. See [ROADMAP.md](../ROADMAP.md) and [Deferred commands](#deferred-commands-in-v01) below.
+**Status**: v0.2 shipping. `konstera version`, `konstera manifest validate`, `konstera init`, `konstera build` all work today; `deploy` and `dev up/down` are stubbed and print the manual path. See [ROADMAP.md](../ROADMAP.md) and [Deferred commands](#deferred-commands-in-v01) below.
 
 ## Install
 
@@ -46,14 +46,14 @@ make release-snapshot  # GoReleaser dry-run (requires goreleaser installed)
 |---|---|---|
 | `konstera version` | ✅ v0.1 | Print the CLI version + git SHA + build date. |
 | `konstera manifest validate <path>` | ✅ v0.1 | Validate an agent manifest against the vendored `agent-manifest.v3.json` schema. Exits 0 on valid, 1 on invalid, with per-violation output grouped by JSON pointer. Use `--schema <path>` to point at a modified copy, or set `KONSTERA_SCHEMA_DIR`. |
-| `konstera init <name>` | 🚧 Stub | Will scaffold an agent (templates: `hello-world`, `customer-service-starter`, `rag-starter`) in your chosen language (`python` / `typescript` / `dotnet`). For now, clone a reference agent from `github.com/Konstera/agents`. |
-| `konstera build` | 🚧 Stub | Will shim `docker buildx build`, reading id + version from manifest.json. For now, run `docker buildx build` directly. |
+| `konstera init <name>` | ✅ v0.2 | Scaffolds an agent in `python` / `typescript` / `dotnet` from embedded templates. v0.2 ships the `hello-world` template; `customer-service-starter` + `rag-starter` land in v0.3. Flags: `--language`, `--template`, `--dir`, `--force`. |
+| `konstera build` | ✅ v0.2 | Shims `docker buildx build`. Reads id + version from manifest.json → default tag `<id>:<version>`. Flags: `--tag`, `--push`, `--platform`, `--context`, `--dockerfile`. |
 | `konstera deploy` | 🚧 Stub | Will push the agent image + register the manifest with a workspace. For now, use the portal: Agents → Upload package. |
 | `konstera dev up` / `konstera dev down` | 🚧 Stub | Will run the local Konstera dev stack (kernel + Postgres + your agent) via Docker Compose. For now, use the platform repo's compose stack. |
 
-## Deferred commands in v0.1
+## Deferred commands
 
-The following are declared in [ADR-035 §G](../../platform/docs/adr/035-public-developer-stack-and-repo-topology.md) but not implemented in v0.1 — they land in subsequent minor versions:
+The following are declared in [ADR-035 §G](../../platform/docs/adr/035-public-developer-stack-and-repo-topology.md) but not implemented yet — they land in subsequent minor versions:
 
 - `konstera login / logout / whoami / config` — auth + profile management
 - `konstera llm add / providers / test` — BYOK provider setup

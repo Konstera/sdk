@@ -1,0 +1,22 @@
+# {{ .AgentName }} — Konstera agent.
+# Multi-stage build; produces a self-contained runtime image.
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /app
+COPY {{ .AgentName }}.csproj ./
+RUN dotnet restore
+COPY . ./
+RUN dotnet publish -c Release -o /out /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+RUN groupadd --system agent && useradd --system --gid agent --create-home agent
+WORKDIR /app
+COPY --from=build /out ./
+
+USER agent
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=8s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["dotnet", "{{ .AgentName }}.dll"]
