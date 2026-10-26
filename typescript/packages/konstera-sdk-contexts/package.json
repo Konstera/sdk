@@ -1,6 +1,6 @@
 {
   "name": "@konstera/sdk-contexts",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Typed constants for the Konstera Standard Context Pack v1 — canonical glossary / skill / ontology-entity names. Reference ContextTerms.RefundWindowDays instead of magic strings so typos fail at tsc time, not install.",
   "license": "Apache-2.0",
   "author": "Konstera",

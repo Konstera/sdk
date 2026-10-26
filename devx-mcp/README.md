@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Konstera/sdk/main/assets/brand/konstera-mark-blue.png" alt="Konstera" width="64" />
+
 # Konstera DevX MCP
 
 MCP server that exposes Konstera's **capability catalogue** as tools your

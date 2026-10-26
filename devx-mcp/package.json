@@ -1,6 +1,6 @@
 {
   "name": "@konstera/devx-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Konstera DevX MCP server — exposes the capability catalogue as MCP tools so coding agents (Claude Desktop, Cursor, Windsurf, Claude Code) can discover + browse what ctx.capability.* can call without context-dumping the docs.",
   "license": "Apache-2.0",
   "author": "Konstera",

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "konstera-sdk-contexts"
-version = "1.0.0"
+version = "1.0.1"
 description = "Typed constants for the Konstera Standard Context Pack v1 — canonical glossary / skill / ontology-entity names. Reference ContextTerms.REFUND_WINDOW_DAYS instead of magic strings so typos fail at import time, not install."
 readme = "README.md"
 license = { text = "Apache-2.0" }

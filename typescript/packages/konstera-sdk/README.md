@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Konstera/sdk/main/assets/brand/konstera-mark-blue.png" alt="Konstera" width="64" />
+
 # @konstera/sdk (TypeScript)
 
 Build Konstera agents in TypeScript without hand-writing MCP client boilerplate, HTTP servers, or env-var parsing. Subclass `Agent`, override `handle()`, call `run()`.

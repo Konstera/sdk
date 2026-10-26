@@ -7,7 +7,16 @@
     <Description>Konstera Agent SDK for .NET. Mirror of konstera-sdk (Python). Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing.</Description>
     <PackageLicenseExpression>BUSL-1.1</PackageLicenseExpression>
     <Authors>Konstera</Authors>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Konstera/sdk</RepositoryUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Shown on nuget.org next to the package name and as the package page. -->
+    <None Include="..\..\..\assets\brand\konstera-mark-blue.png" Pack="true" PackagePath="\icon.png" Visible="false" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\README.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- MCP client (same lib as the kernel side, per ADR-001).

@@ -31,7 +31,7 @@ export async function createServer(): Promise<Server> {
   const server = new Server(
     {
       name: "konstera-devx-mcp",
-      version: "0.1.0",
+      version: "0.1.1",
     },
     {
       capabilities: {
