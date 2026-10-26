@@ -1,0 +1,103 @@
+# GoReleaser config for the Konstera CLI (sdk/cli/).
+#
+# Triggered by `cli-v<X.Y.Z>` tags in the sdk/ repo via
+# .github/workflows/release-cli.yml. Produces cross-compiled binaries for
+# Linux + macOS + Windows (x86_64 + arm64), publishes a GitHub Release
+# with per-platform archives, and updates the brew tap + scoop bucket +
+# winget manifest in the companion repos.
+#
+# Local dry-run: `goreleaser release --snapshot --clean --skip=publish`
+#
+# https://goreleaser.com/
+
+version: 2
+
+project_name: konstera
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: konstera
+    main: ./cmd/konstera
+    binary: konstera
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/Konstera/sdk/cli/internal/version.Version={{.Version}}
+      - -X github.com/Konstera/sdk/cli/internal/version.Commit={{.Commit}}
+      - -X github.com/Konstera/sdk/cli/internal/version.Date={{.CommitDate}}
+
+archives:
+  - id: default
+    name_template: >-
+      konstera_{{ .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE*
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+# Homebrew tap (one-time setup: create https://github.com/Konstera/homebrew-tap).
+brews:
+  - name: konstera
+    repository:
+      owner: Konstera
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://konstera.ai
+    description: "The Konstera agent-authoring CLI"
+    license: Apache-2.0
+    test: |
+      system "#{bin}/konstera version"
+
+# Scoop bucket (one-time setup: create https://github.com/Konstera/scoop-bucket).
+scoops:
+  - name: konstera
+    repository:
+      owner: Konstera
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
+    homepage: https://konstera.ai
+    description: "The Konstera agent-authoring CLI"
+    license: Apache-2.0
+
+# Winget manifest (one-time setup: fork https://github.com/microsoft/winget-pkgs).
+# Enable after first stable release; comment out until the fork exists.
+# winget:
+#   - name: konstera
+#     publisher: Konstera
+#     license: Apache-2.0
+#     homepage: https://konstera.ai
+#     short_description: "The Konstera agent-authoring CLI"
+#     repository:
+#       owner: Konstera
+#       name: winget-pkgs
+#       token: "{{ .Env.WINGET_PKGS_GITHUB_TOKEN }}"
+#       branch: "konstera-{{ .Version }}"
