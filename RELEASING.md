@@ -91,15 +91,25 @@ Preferred because there's no token to leak or rotate.
 
 The workflows reference GitHub Environments named `pypi`. Create the environment in GitHub repo settings → Environments → New environment → `pypi`. No reviewers / wait timers needed for release automation (optional: add a required reviewer if you want publish-time gating).
 
-### npm — automation token
+### npm — granular access token
 
 Modern npm supports OIDC trusted publishing, but it requires the package to exist first. For the initial publish and until that migration happens:
 
-1. On [npmjs.com](https://www.npmjs.com/), create an automation token (classic token with publish scope on `konstera-sdk-contexts`).
-2. In GitHub repo settings → Secrets → Actions, create:
+1. On [npmjs.com](https://www.npmjs.com/), create the `konstera` organization (needed for the `@konstera/devx-mcp` scope). `konstera-sdk` and `konstera-sdk-contexts` are unscoped.
+2. Create a **granular access token** (classic automation tokens are retired):
+   - Permissions: Read and write
+   - Packages: all packages (they don't exist yet), or `konstera-sdk`, `konstera-sdk-contexts` and `@konstera/*` after the first publish
+   - Organizations: `konstera`
+   - "Bypass two-factor authentication" enabled (CI can't answer a 2FA prompt)
+   - Shortest expiry that covers the release window
+3. In GitHub repo settings → Secrets → Actions, create:
    - Name: `NPM_TOKEN`
-   - Value: (the automation token)
-3. After the first successful publish, consider migrating to OIDC trusted publishing (see [npm docs](https://docs.npmjs.com/trusted-publishers)) and remove the long-lived token.
+   - Value: (the granular token)
+4. After the first successful publish, migrate each package to OIDC trusted publishing (see [npm docs](https://docs.npmjs.com/trusted-publishers)) and delete the token.
+
+### npm provenance — requires this repo to stay public
+
+The npm workflows publish with `--provenance`, and npm only accepts that from a **public** source repository. `Konstera/sdk` was made public on 2026-10-26 for this reason. If it ever goes private again, every npm publish fails at the publish step until `--provenance` is removed from the three `npm publish` lines (`release-typescript.yml` ×2, `release-devx-mcp.yml`).
 
 ## Semver policy
 
@@ -158,8 +168,7 @@ Then push a correct tag. If the workflow already ran and published to NuGet or P
 
 ## Future hardening (post-v1.0)
 
-- **Migrate npm to OIDC trusted publishing** once `konstera-sdk-contexts` is published once with the token flow.
-- **Add provenance signing to NuGet packages** when NuGet.org gains OIDC support (as of 2026-10, not available).
+- **Migrate npm to OIDC trusted publishing** once each npm package is published once with the token flow.- **Add provenance signing to NuGet packages** when NuGet.org gains OIDC support (as of 2026-10, not available).
 - **Automated changelog** derived from Conventional Commits — currently relying on `generate_release_notes: true` which uses PR titles.
 - **Cross-package version lockstep check** for context packs — a CI job that fails if the three contexts packages' versions don't match `schemas/standard-context-pack-v1.json`'s version.
 - **Pre-release channel** (`-rc1`, `-alpha.1`) support with a separate workflow or tag matcher.
