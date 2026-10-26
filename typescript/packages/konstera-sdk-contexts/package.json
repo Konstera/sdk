@@ -1,6 +1,6 @@
 {
   "name": "konstera-sdk-contexts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Typed constants for the Konstera Standard Context Pack v1 — canonical glossary / skill / ontology-entity names. Reference ContextTerms.RefundWindowDays instead of magic strings so typos fail at tsc time, not install.",
   "license": "Apache-2.0",
   "author": "Konstera",
@@ -27,7 +27,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-pack.mjs",
+    "build": "tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node scripts/fixup-exports.mjs && node scripts/copy-pack.mjs",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"
   },

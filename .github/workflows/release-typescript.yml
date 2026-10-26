@@ -67,6 +67,19 @@ jobs:
         working-directory: typescript/packages/konstera-sdk-contexts
         run: pnpm run build
 
+      - name: Smoke-test the packed package (require + import)
+        # tsc output can pass build + tests yet not load from the tarball
+        # (konstera-sdk-contexts 1.0.0 shipped that way). Install the packed
+        # tarball into an empty project and load it both ways before publishing.
+        working-directory: typescript/packages/konstera-sdk-contexts
+        run: |
+          TARBALL="$(npm pack --silent --pack-destination "$RUNNER_TEMP")"
+          mkdir "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP/$TARBALL"
+          node -e "require('konstera-sdk-contexts')"
+          node --input-type=module -e "await import('konstera-sdk-contexts')"
+
       - name: Publish to npm (with provenance)
         working-directory: typescript/packages/konstera-sdk-contexts
         env:
@@ -130,6 +143,19 @@ jobs:
       - name: Test
         working-directory: typescript/packages/konstera-sdk
         run: pnpm test
+
+      - name: Smoke-test the packed package (require + import)
+        # tsc output can pass build + tests yet not load from the tarball
+        # (konstera-sdk-contexts 1.0.0 shipped that way). Install the packed
+        # tarball into an empty project and load it both ways before publishing.
+        working-directory: typescript/packages/konstera-sdk
+        run: |
+          TARBALL="$(npm pack --silent --pack-destination "$RUNNER_TEMP")"
+          mkdir "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP/$TARBALL"
+          node -e "require('konstera-sdk')"
+          node --input-type=module -e "await import('konstera-sdk')"
 
       - name: Publish to npm (with provenance)
         working-directory: typescript/packages/konstera-sdk
