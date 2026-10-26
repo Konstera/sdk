@@ -1,0 +1,105 @@
+name: release-devx-mcp
+
+# Publishes @konstera/devx-mcp to npm.
+#
+# The DevX MCP server exposes the Konstera capability catalogue as MCP
+# tools so coding agents (Claude Desktop, Cursor, Windsurf, Claude Code)
+# can query it inline. Users install via `npx -y @konstera/devx-mcp`.
+#
+# Tag convention (see RELEASING.md):
+#   devx-mcp-v<X.Y.Z>  -> publishes @konstera/devx-mcp
+#
+# Required secrets (one-time setup, see RELEASING.md):
+#   NPM_TOKEN  — npm classic automation token with publish scope on @konstera/*.
+#   (Future: migrate to OIDC trusted publishing after first manual publish.)
+
+on:
+  push:
+    tags:
+      - "devx-mcp-v*"
+
+jobs:
+  publish:
+    name: Publish @konstera/devx-mcp to npm
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # for npm --provenance
+      contents: write  # for GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/devx-mcp-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches package.json
+        working-directory: devx-mcp
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "package.json: $PKG_VERSION"
+          echo "tag:          ${{ steps.version.outputs.version }}"
+          if [ "$PKG_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::package.json version '$PKG_VERSION' does not match tag 'devx-mcp-v${{ steps.version.outputs.version }}'."
+            exit 1
+          fi
+
+      - name: Install deps
+        working-directory: devx-mcp
+        run: npm ci
+
+      - name: Build
+        working-directory: devx-mcp
+        run: npm run build
+
+      - name: Test
+        working-directory: devx-mcp
+        run: npm test
+
+      - name: Publish to npm (with provenance)
+        working-directory: devx-mcp
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            Published to npm: https://www.npmjs.com/package/@konstera/devx-mcp/v/${{ steps.version.outputs.version }}
+
+            Install snippets:
+
+            **Claude Desktop** — add to `claude_desktop_config.json`:
+            ```json
+            {
+              "mcpServers": {
+                "konstera-devx": {
+                  "command": "npx",
+                  "args": ["-y", "@konstera/devx-mcp@${{ steps.version.outputs.version }}"]
+                }
+              }
+            }
+            ```
+
+            **Cursor** — add to `.cursor/mcp.json`:
+            ```json
+            {
+              "mcpServers": {
+                "konstera-devx": {
+                  "command": "npx",
+                  "args": ["-y", "@konstera/devx-mcp@${{ steps.version.outputs.version }}"]
+                }
+              }
+            }
+            ```
+
+            **Claude Code CLI:**
+            ```
+            claude mcp add konstera-devx npx -y @konstera/devx-mcp@${{ steps.version.outputs.version }}
+            ```

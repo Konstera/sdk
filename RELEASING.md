@@ -1,16 +1,18 @@
 # Releasing Konstera SDK packages
 
-This repo publishes **five packages across three registries**. Each package has its own release workflow triggered by a specific git tag pattern.
+This repo publishes **seven packages across three registries**. Each package has its own release workflow triggered by a specific git tag pattern.
 
 ## Package → tag → registry map
 
 | Package | Current | Tag pattern | Registry | License |
 |---|---|---|---|---|
-| `Konstera.Sdk` | 0.1.0 | `sdk-dotnet-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | BUSL-1.1 |
+| `Konstera.Sdk` | 0.3.0 | `sdk-dotnet-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | BUSL-1.1 |
 | `Konstera.Sdk.Contexts` | 1.0.0 | `sdk-dotnet-contexts-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | Apache-2.0 |
-| `konstera-sdk` (Python) | 0.5.0 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
+| `konstera-sdk` (Python) | 0.6.0 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
 | `konstera-sdk-contexts` (Python) | 1.0.0 | `sdk-python-contexts-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
+| `konstera-sdk` (TS) | 0.4.0 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
 | `konstera-sdk-contexts` (TS) | 1.0.0 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+| `@konstera/devx-mcp` | 0.1.0 | `devx-mcp-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
 
 ## Release process
 
