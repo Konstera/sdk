@@ -84,12 +84,12 @@ Preferred because there's no token to leak or rotate.
    - Owner: `Konstera`
    - Repository name: `sdk`
    - Workflow filename: `release-python.yml`
-   - Environment: `pypi`
+   - Environment: `pypi-sdk`
 3. First successful publish promotes the pending publisher to active.
 
 **For `konstera-sdk-contexts`:** repeat with project name `konstera-sdk-contexts`.
 
-The workflows reference GitHub Environments named `pypi`. Create the environment in GitHub repo settings → Environments → New environment → `pypi`. No reviewers / wait timers needed for release automation (optional: add a required reviewer if you want publish-time gating).
+The workflow uses a GitHub Environment named `pypi-sdk` (it must match the "Environment name" on PyPI exactly). Create it in GitHub repo settings → Environments → New environment → `pypi-sdk`, and under "Deployment branches and tags" allow only tags matching `sdk-python-*`, so no branch or PR workflow can publish. No reviewers or wait timers are needed (optional: add a required reviewer for publish-time gating).
 
 ### npm — granular access token
 
@@ -137,8 +137,8 @@ Version already published. NuGet forbids overwriting a version. Bump to a new pa
 ### PyPI publish fails with "trusted publisher not configured"
 The pending publisher wasn't set up for this package. See the PyPI one-time setup above. Pending publishers expire 24h after creation if not used — if more time has passed, recreate.
 
-### PyPI publish fails with "environment pypi not found"
-Create a GitHub Environment named `pypi` in repo settings.
+### PyPI publish fails with "environment pypi-sdk not found"
+Create a GitHub Environment named `pypi-sdk` (restricted to `sdk-python-*` tags) in repo settings.
 
 ### npm publish fails with "You must be logged in to publish"
 `NPM_TOKEN` secret is missing or expired. See the npm one-time setup above. Automation tokens expire; rotate before expiry.
