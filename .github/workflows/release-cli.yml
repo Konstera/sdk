@@ -1,0 +1,56 @@
+name: release-cli
+
+# Publishes the Konstera CLI via GoReleaser.
+#
+# Tag convention: cli-v<X.Y.Z>  (e.g. cli-v0.1.0)
+#
+# Outputs:
+#   - GitHub Release with cross-compiled archives (linux/darwin/windows × amd64/arm64)
+#   - Homebrew tap updated at Konstera/homebrew-tap
+#   - Scoop bucket updated at Konstera/scoop-bucket
+#   - (future) winget manifest PR'd against Konstera/winget-pkgs
+#
+# One-time setup:
+#   - Create https://github.com/Konstera/homebrew-tap (empty repo).
+#   - Create https://github.com/Konstera/scoop-bucket (empty repo).
+#   - Create a GitHub PAT with `contents: write` on both companion repos,
+#     store as repo secret HOMEBREW_TAP_GITHUB_TOKEN + SCOOP_BUCKET_GITHUB_TOKEN
+#     on this (sdk) repo.
+
+on:
+  push:
+    tags:
+      - "cli-v*"
+
+permissions:
+  contents: write  # for GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # GoReleaser needs full history for changelog
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+          cache-dependency-path: cli/go.sum
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/cli-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+          workdir: cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
