@@ -36,8 +36,12 @@ Repository = "https://github.com/Konstera/sdk"
 [tool.hatch.build.targets.wheel]
 packages = ["src/konstera_sdk_contexts"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"../../schemas/standard-context-pack-v1.json" = "konstera_sdk_contexts/schemas/standard-context-pack-v1.json"
+# The pack JSON sits outside this project. The sdist carries a copy at
+# schemas/; hatch_build.py adds it to the wheel from either location.
+[tool.hatch.build.targets.wheel.hooks.custom]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../../schemas/standard-context-pack-v1.json" = "schemas/standard-context-pack-v1.json"
 
 [tool.ruff]
 line-length = 100
