@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Konstera/sdk/main/assets/brand/konstera-mark-blue.png" alt="Konstera" width="64" />
+
 # konstera-sdk (Python)
 
 Build Konstera agents in Python without hand-writing MCP client boilerplate, HTTP servers, or env-var parsing. Subclass `Agent`, override `handle()`, call `run()`.

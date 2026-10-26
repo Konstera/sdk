@@ -60,7 +60,11 @@ jobs:
         run: |
           dotnet new console -n Smoke -o "$RUNNER_TEMP/smoke" --framework net10.0
           cd "$RUNNER_TEMP/smoke"
-          dotnet add package Konstera.Sdk --version "${{ steps.version.outputs.version }}" --source "$GITHUB_WORKSPACE/nupkg"
+          # Local folder for the package under test, nuget.org for its dependencies
+          # (dotnet add package accepts only one --source).
+          dotnet new nugetconfig
+          dotnet nuget add source "$GITHUB_WORKSPACE/nupkg" --name local --configfile nuget.config
+          dotnet add package Konstera.Sdk --version "${{ steps.version.outputs.version }}"
           echo 'System.Console.WriteLine(typeof(Konstera.Sdk.Agent).AssemblyQualifiedName);' > Program.cs
           dotnet run
 
@@ -140,7 +144,11 @@ jobs:
         run: |
           dotnet new console -n Smoke -o "$RUNNER_TEMP/smoke" --framework net10.0
           cd "$RUNNER_TEMP/smoke"
-          dotnet add package Konstera.Sdk.Contexts --version "${{ steps.version.outputs.version }}" --source "$GITHUB_WORKSPACE/nupkg"
+          # Local folder for the package under test, nuget.org for its dependencies
+          # (dotnet add package accepts only one --source).
+          dotnet new nugetconfig
+          dotnet nuget add source "$GITHUB_WORKSPACE/nupkg" --name local --configfile nuget.config
+          dotnet add package Konstera.Sdk.Contexts --version "${{ steps.version.outputs.version }}"
           echo 'System.Console.WriteLine(typeof(Konstera.Sdk.Contexts.ContextTerms).AssemblyQualifiedName);' > Program.cs
           dotnet run
 

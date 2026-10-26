@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Konstera/sdk/main/assets/brand/konstera-mark-blue.png" alt="Konstera" width="64" />
+
 # Konstera Agent SDK for .NET
 
 Mirror of `sdk/python`. Same conceptual API (`Agent` → `HandleAsync` →

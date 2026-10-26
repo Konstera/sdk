@@ -3,7 +3,7 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>Konstera.Sdk.Contexts</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Description>Typed constants for the Konstera Standard Context Pack v1 — canonical glossary / skill / ontology-entity names that every retail-core seed pack guarantees. Agent authors reference ContextTerms.RefundWindowDays instead of magic strings so typos fail at build time, not install. Generated from sdk/schemas/standard-context-pack-v1.json; see sdk/scripts/generate_constants.py.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Authors>Konstera</Authors>
@@ -11,7 +11,16 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Konstera/sdk</RepositoryUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Shown on nuget.org next to the package name and as the package page. -->
+    <None Include="..\..\..\assets\brand\konstera-mark-blue.png" Pack="true" PackagePath="\icon.png" Visible="false" />
+    <None Include="README.md" Pack="true" PackagePath="\README.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Ship the pack JSON as content so consumers can bind to it at runtime

@@ -31,7 +31,7 @@ from typing import Any
 
 from ._generated import ContextEntities, ContextSkills, ContextTerms
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 PACK_VERSION = "v1"
 
 __all__ = [

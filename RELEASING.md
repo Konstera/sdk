@@ -7,12 +7,26 @@ This repo publishes **seven packages across three registries**. Each package has
 | Package | Current | Tag pattern | Registry | License |
 |---|---|---|---|---|
 | `Konstera.Sdk` | 0.3.0 | `sdk-dotnet-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | BUSL-1.1 |
-| `Konstera.Sdk.Contexts` | 1.0.0 | `sdk-dotnet-contexts-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | Apache-2.0 |
-| `konstera-sdk` (Python) | 0.6.0 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
-| `konstera-sdk-contexts` (Python) | 1.0.0 | `sdk-python-contexts-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
-| `@konstera/sdk` (TS) | 0.4.1 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
-| `@konstera/sdk-contexts` (TS) | 1.0.2 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
-| `@konstera/devx-mcp` | 0.1.0 | `devx-mcp-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+| `Konstera.Sdk.Contexts` | 1.0.1 | `sdk-dotnet-contexts-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | Apache-2.0 |
+| `konstera-sdk` (Python) | 0.6.1 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
+| `konstera-sdk-contexts` (Python) | 1.0.1 | `sdk-python-contexts-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
+| `@konstera/sdk` (TS) | 0.4.2 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
+| `@konstera/sdk-contexts` (TS) | 1.0.3 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+| `@konstera/devx-mcp` | 0.1.1 | `devx-mcp-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+
+## Package icon and README
+
+Every package ships with the Konstera mark and a README:
+
+| Registry | Icon | README |
+|---|---|---|
+| NuGet | `<PackageIcon>` → `icon.png` packed from `assets/brand/konstera-mark-blue.png` | `<PackageReadmeFile>` → `README.md` (`dotnet/README.md` for `Konstera.Sdk`, the project's own `README.md` for `Konstera.Sdk.Contexts`) |
+| npm | npm has no icon field; the mark is the first line of each package README | `README.md` in the package folder (in `files`) |
+| PyPI | PyPI has no icon field; the mark is the first line of each package README | `readme = "README.md"` in `pyproject.toml` |
+
+The README image uses the absolute URL `https://raw.githubusercontent.com/Konstera/sdk/main/assets/brand/konstera-mark-blue.png`, because registries can't resolve relative paths. Keep that file on `main`.
+
+**Source of truth for the mark:** `website/public/brand/konstera-mark-blue.png` (Website repo). `assets/brand/konstera-mark-blue.png` here is a byte-identical copy. If the brand mark changes, replace both and publish a patch of each package so the registries pick it up.
 
 ## Why the npm packages are scoped (`@konstera/*`)
 

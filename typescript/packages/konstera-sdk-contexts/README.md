@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Konstera/sdk/main/assets/brand/konstera-mark-blue.png" alt="Konstera" width="64" />
+
 # @konstera/sdk-contexts
 
 Typed constants for the **Konstera Standard Context Pack v1** — canonical glossary / skill / ontology-entity names that every retail-core seed pack guarantees.
