@@ -6,13 +6,17 @@ This repo publishes **seven packages across three registries**. Each package has
 
 | Package | Current | Tag pattern | Registry | License |
 |---|---|---|---|---|
-| `Konstera.Sdk` | 0.3.0 | `sdk-dotnet-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | BUSL-1.1 |
+| `Konstera.Sdk` | 0.3.0 | `sdk-dotnet-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | Apache-2.0 |
 | `Konstera.Sdk.Contexts` | 1.0.1 | `sdk-dotnet-contexts-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | Apache-2.0 |
-| `konstera-sdk` (Python) | 0.6.1 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
+| `konstera-sdk` (Python) | 0.6.2 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
 | `konstera-sdk-contexts` (Python) | 1.0.1 | `sdk-python-contexts-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
-| `@konstera/sdk` (TS) | 0.4.2 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
+| `@konstera/sdk` (TS) | 0.4.3 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
 | `@konstera/sdk-contexts` (TS) | 1.0.3 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
 | `@konstera/devx-mcp` | 0.1.1 | `devx-mcp-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+
+## Licence
+
+All packages are **Apache-2.0** (root [`LICENSE`](./LICENSE)). Decision: Masood, 2026-10-26, following the developer-stack topology decision that the SDK, CLI, reference agents and deploy kit are Apache-2.0 so third parties can build on Konstera without legal friction. The main SDKs were briefly labelled BUSL-1.1: `konstera-sdk` 0.6.0–0.6.1 on PyPI and `@konstera/sdk` 0.4.1–0.4.2 on npm carry that label. nuget.org rejects BUSL-1.1 as a licence expression (only OSI/FSF licences are allowed), which surfaced the mismatch. From `Konstera.Sdk` 0.3.0, `konstera-sdk` 0.6.2 and `@konstera/sdk` 0.4.3, all are Apache-2.0.
 
 ## Package icon and README
 

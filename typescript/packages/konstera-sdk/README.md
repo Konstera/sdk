@@ -128,4 +128,4 @@ pnpm --filter @konstera/sdk run test
 
 ## Licence
 
-BSL-1.1 (Business Source License). See the repo-level `LICENSE`. Auto-converts to Apache 2.0 four years after each release.
+Apache-2.0. See the repo-level [`LICENSE`](https://github.com/Konstera/sdk/blob/main/LICENSE).

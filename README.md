@@ -99,8 +99,6 @@ Working templates + end-to-end tests of the SDK, published in [`Konstera/agents`
 
 ## License
 
-Dual-licensed:
-- **Apache-2.0** — `konstera-sdk-contexts` (PyPI), `@konstera/sdk-contexts` (npm), `Konstera.Sdk.Contexts` (NuGet), `@konstera/devx-mcp`, `cli/`, `schemas/`, `examples/`, `scripts/`
-- **BUSL-1.1** — `konstera-sdk` (Python), `Konstera.Sdk` (.NET), `konstera-sdk` (TypeScript when shipped)
+Everything in this repository is licensed under the [Apache License 2.0](./LICENSE): the SDKs (`Konstera.Sdk`, `konstera-sdk`, `@konstera/sdk`), the context packs (`Konstera.Sdk.Contexts`, `konstera-sdk-contexts`, `@konstera/sdk-contexts`), `@konstera/devx-mcp`, `cli/`, `schemas/`, `examples/` and `scripts/`.
 
-See [ADR-035](https://github.com/Konstera/platform/blob/develop/platform/docs/adr/035-public-developer-stack-and-repo-topology.md) for the licence rationale.
+The SDKs are Apache-2.0 so anyone can build, run and ship agents on Konstera without licence friction.

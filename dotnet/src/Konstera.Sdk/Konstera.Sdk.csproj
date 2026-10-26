@@ -5,7 +5,7 @@
     <PackageId>Konstera.Sdk</PackageId>
     <Version>0.3.0</Version>
     <Description>Konstera Agent SDK for .NET. Mirror of konstera-sdk (Python). Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing.</Description>
-    <PackageLicenseExpression>BUSL-1.1</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Authors>Konstera</Authors>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
