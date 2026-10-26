@@ -3,8 +3,8 @@ name: release-typescript
 # Publishes TypeScript SDK packages to npm.
 #
 # Tag conventions (see RELEASING.md):
-#   sdk-ts-contexts-v<X.Y.Z>  -> publishes konstera-sdk-contexts
-#   sdk-ts-v<X.Y.Z>           -> publishes konstera-sdk  (added in Phase 1.5)
+#   sdk-ts-contexts-v<X.Y.Z>  -> publishes @konstera/sdk-contexts
+#   sdk-ts-v<X.Y.Z>           -> publishes @konstera/sdk
 #
 # Required secrets (one-time setup, see RELEASING.md):
 #   NPM_TOKEN  — npm classic automation token with publish scope.
@@ -18,7 +18,7 @@ on:
 
 jobs:
   publish-contexts:
-    name: Publish konstera-sdk-contexts to npm
+    name: Publish @konstera/sdk-contexts to npm
     if: startsWith(github.ref, 'refs/tags/sdk-ts-contexts-v')
     runs-on: ubuntu-latest
     permissions:
@@ -77,8 +77,8 @@ jobs:
           mkdir "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
           npm init -y > /dev/null
           npm install --no-audit --no-fund "$RUNNER_TEMP/$TARBALL"
-          node -e "require('konstera-sdk-contexts')"
-          node --input-type=module -e "await import('konstera-sdk-contexts')"
+          node -e "require('@konstera/sdk-contexts')"
+          node --input-type=module -e "await import('@konstera/sdk-contexts')"
 
       - name: Publish to npm (with provenance)
         working-directory: typescript/packages/konstera-sdk-contexts
@@ -91,15 +91,15 @@ jobs:
         with:
           generate_release_notes: true
           body: |
-            Published to npm: https://www.npmjs.com/package/konstera-sdk-contexts/v/${{ steps.version.outputs.version }}
+            Published to npm: https://www.npmjs.com/package/@konstera/sdk-contexts/v/${{ steps.version.outputs.version }}
 
             Install:
             ```
-            npm install konstera-sdk-contexts@${{ steps.version.outputs.version }}
+            npm install @konstera/sdk-contexts@${{ steps.version.outputs.version }}
             ```
 
   publish-sdk-ts:
-    name: Publish konstera-sdk to npm
+    name: Publish @konstera/sdk to npm
     if: startsWith(github.ref, 'refs/tags/sdk-ts-v')
     runs-on: ubuntu-latest
     permissions:
@@ -154,8 +154,8 @@ jobs:
           mkdir "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
           npm init -y > /dev/null
           npm install --no-audit --no-fund "$RUNNER_TEMP/$TARBALL"
-          node -e "require('konstera-sdk')"
-          node --input-type=module -e "await import('konstera-sdk')"
+          node -e "require('@konstera/sdk')"
+          node --input-type=module -e "await import('@konstera/sdk')"
 
       - name: Publish to npm (with provenance)
         working-directory: typescript/packages/konstera-sdk
@@ -168,9 +168,9 @@ jobs:
         with:
           generate_release_notes: true
           body: |
-            Published to npm: https://www.npmjs.com/package/konstera-sdk/v/${{ steps.version.outputs.version }}
+            Published to npm: https://www.npmjs.com/package/@konstera/sdk/v/${{ steps.version.outputs.version }}
 
             Install:
             ```
-            npm install konstera-sdk@${{ steps.version.outputs.version }}
+            npm install @konstera/sdk@${{ steps.version.outputs.version }}
             ```

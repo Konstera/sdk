@@ -10,9 +10,25 @@ This repo publishes **seven packages across three registries**. Each package has
 | `Konstera.Sdk.Contexts` | 1.0.0 | `sdk-dotnet-contexts-v<X.Y.Z>` | [nuget.org](https://www.nuget.org/) | Apache-2.0 |
 | `konstera-sdk` (Python) | 0.6.0 | `sdk-python-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | BUSL-1.1 |
 | `konstera-sdk-contexts` (Python) | 1.0.0 | `sdk-python-contexts-v<X.Y.Z>` | [pypi.org](https://pypi.org/) | Apache-2.0 |
-| `konstera-sdk` (TS) | 0.4.0 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
-| `konstera-sdk-contexts` (TS) | 1.0.1 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+| `@konstera/sdk` (TS) | 0.4.1 | `sdk-ts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | BUSL-1.1 |
+| `@konstera/sdk-contexts` (TS) | 1.0.2 | `sdk-ts-contexts-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
 | `@konstera/devx-mcp` | 0.1.0 | `devx-mcp-v<X.Y.Z>` | [npmjs.com](https://www.npmjs.com/) | Apache-2.0 |
+
+## Why the npm packages are scoped (`@konstera/*`)
+
+PyPI and NuGet keep the plain names (`konstera-sdk`, `konstera-sdk-contexts`, `Konstera.Sdk`, `Konstera.Sdk.Contexts`). On npm, every package lives under the `@konstera` scope:
+
+| npm package | Replaces | Version |
+|---|---|---|
+| `@konstera/sdk` | `konstera-sdk` | 0.4.1 |
+| `@konstera/sdk-contexts` | `konstera-sdk-contexts` | 1.0.2 |
+| `@konstera/devx-mcp` | (always scoped) | 0.1.0 |
+
+**Why (decision: Masood, 2026-10-26).** On npm, an unscoped package belongs to the *user account that published it first*, not to an organization. The first publish of `konstera-sdk` and `konstera-sdk-contexts` therefore made one personal account their only maintainer, and the `konstera` org had no control over them. A package under `@konstera/` belongs to the org, so publish rights, maintainers and ownership follow org and team membership instead of one person. It also matches `@konstera/devx-mcp` and makes every Konstera npm package recognisable by its scope.
+
+**What happened to the old names.** `konstera-sdk@0.4.0`, `konstera-sdk-contexts@1.0.1` and the broken `konstera-sdk-contexts@1.0.0` stay on npm (npm doesn't allow deleting them after 72 hours) but are **deprecated** with a message pointing to the scoped package. Don't publish new versions under the old names.
+
+**Versions.** The scoped packages continue the version line (`0.4.1`, `1.0.2`) because the `sdk-ts-v0.4.0` and `sdk-ts-contexts-v1.0.1` tags are already taken. Only the npm name changed; the folders under `typescript/packages/` keep their names.
 
 ## Release process
 
@@ -95,10 +111,10 @@ The workflow uses a GitHub Environment named `pypi-sdk` (it must match the "Envi
 
 Modern npm supports OIDC trusted publishing, but it requires the package to exist first. For the initial publish and until that migration happens:
 
-1. On [npmjs.com](https://www.npmjs.com/), create the `konstera` organization (needed for the `@konstera/devx-mcp` scope). `konstera-sdk` and `konstera-sdk-contexts` are unscoped.
+1. On [npmjs.com](https://www.npmjs.com/), create the `konstera` organization. All npm packages are published under the `@konstera` scope (see "Why the npm packages are scoped" above).
 2. Create a **granular access token** (classic automation tokens are retired):
    - Permissions: Read and write
-   - Packages: all packages (they don't exist yet), or `konstera-sdk`, `konstera-sdk-contexts` and `@konstera/*` after the first publish
+   - Packages: all packages (they don't exist yet), or `@konstera/*` after the first publish
    - Organizations: `konstera`
    - "Bypass two-factor authentication" enabled (CI can't answer a 2FA prompt)
    - Shortest expiry that covers the release window
@@ -121,7 +137,7 @@ Follows the policy in [`ROADMAP.md`](./ROADMAP.md) §1:
 - Metadata-only change (description / alias / display name): **PATCH** bump.
 - All three contexts packages (NuGet / PyPI / npm) must share the same `MAJOR.MINOR` as the pack JSON (`schemas/standard-context-pack-v1.json`). Patch numbers may diverge if one language ships a packaging-only fix.
 
-**Main SDK packages (`Konstera.Sdk`, `konstera-sdk`):**
+**Main SDK packages (`Konstera.Sdk`, `konstera-sdk` on PyPI, `@konstera/sdk` on npm):**
 - Standard semver. New public API: MINOR. Breaking: MAJOR. Internal fix: PATCH.
 
 Pre-release suffixes (`-rc1`, `-alpha.1`) are **not supported** by the current workflows. If needed, extend the tag matcher + add a `--pre-release` flag.

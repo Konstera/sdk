@@ -1,4 +1,4 @@
-# konstera-sdk (TypeScript)
+# @konstera/sdk (TypeScript)
 
 Build Konstera agents in TypeScript without hand-writing MCP client boilerplate, HTTP servers, or env-var parsing. Subclass `Agent`, override `handle()`, call `run()`.
 
@@ -9,13 +9,13 @@ Mirror of [`konstera-sdk` (Python)](../../python/) at the same conceptual API, i
 ## Install
 
 ```bash
-npm install konstera-sdk
+npm install @konstera/sdk
 ```
 
 ## Minimal agent
 
 ```typescript
-import { Agent, AgentContext, AgentRequest, AgentResponse, run } from "konstera-sdk";
+import { Agent, AgentContext, AgentRequest, AgentResponse, run } from "@konstera/sdk";
 
 class HelloAgent extends Agent {
   async handle(req: AgentRequest, ctx: AgentContext): Promise<AgentResponse> {
@@ -113,7 +113,7 @@ Useful for:
 
 ```bash
 pnpm install           # from typescript/ workspace root
-pnpm --filter konstera-sdk run build
+pnpm --filter @konstera/sdk run build
 ```
 
 Dual ESM + CJS output in `dist/`.
@@ -121,7 +121,7 @@ Dual ESM + CJS output in `dist/`.
 ## Test
 
 ```bash
-pnpm --filter konstera-sdk run test
+pnpm --filter @konstera/sdk run test
 ```
 
 ## Licence
