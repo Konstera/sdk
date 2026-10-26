@@ -1,0 +1,20 @@
+# {{ .AgentName }} — Konstera agent.
+# Multi-stage build; produces a small runtime image.
+
+FROM python:3.13-slim AS runtime
+
+RUN groupadd --system agent && useradd --system --gid agent --create-home agent
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY main.py ./
+
+USER agent
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=8s --retries=3 \
+    CMD python -c "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health', timeout=2).status == 200 else 1)"
+
+ENTRYPOINT ["python", "-u", "main.py"]

@@ -1,0 +1,16 @@
+// {{ .AgentName }} — a Konstera agent in TypeScript.
+//
+// Shaped by `konstera init`. Grow from here:
+//   https://konstera.ai/docs/sdk-quickstart
+
+import { Agent, AgentContext, AgentRequest, AgentResponse, run } from "konstera-sdk";
+
+class {{ .ClassName }} extends Agent {
+  async handle(req: AgentRequest, ctx: AgentContext): Promise<AgentResponse> {
+    const name = (req.input ?? "").trim() || "world";
+    await ctx.log.info(`Hello, ${name}!`, { invocationId: req.invocationId });
+    return { content: `Hello, ${name}! From {{ .AgentName }}.` };
+  }
+}
+
+run(new {{ .ClassName }}());

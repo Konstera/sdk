@@ -1,0 +1,23 @@
+{
+  "$schema": "https://konstera.io/schemas/agent-manifest/v3.json",
+  "manifestVersion": 3,
+  "id": "{{ .AgentId }}",
+  "name": "{{ .DisplayName }}",
+  "version": "{{ .Version }}",
+  "description": "{{ .Description }}",
+  "icon": "{{ .Icon }}",
+  "license": "Apache-2.0",
+  "author": { "name": "{{ .Author }}" },
+
+  "runtime": {
+    "kind": "container",
+    "image": "{{ .AgentId }}:{{ .Version }}",
+    "port": 8080,
+    "healthPath": "/health",
+    "timeoutSeconds": 30
+  },
+
+  "kernelServices": {
+    "required": ["log"]
+  }
+}

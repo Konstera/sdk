@@ -1,0 +1,17 @@
+// {{ .AgentName }} — a Konstera agent in .NET.
+//
+// Shaped by `konstera init`. Grow from here:
+//   https://konstera.ai/docs/sdk-quickstart
+
+using Konstera.Sdk;
+
+var agent = new Agent("{{ .AgentId }}");
+
+agent.OnInvoke(async (ctx) =>
+{
+    var name = string.IsNullOrWhiteSpace(ctx.Input) ? "world" : ctx.Input.Trim();
+    await ctx.Log.InfoAsync($"Hello, {name}!", new { invocationId = ctx.InvocationId });
+    return new AgentResponse { Content = $"Hello, {name}! From {{ .AgentName }}." };
+});
+
+await agent.RunAsync();

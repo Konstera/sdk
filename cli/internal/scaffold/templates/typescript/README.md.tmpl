@@ -1,0 +1,41 @@
+# {{ .DisplayName }}
+
+A Konstera agent, scaffolded by `konstera init`.
+
+## Build
+
+```bash
+konstera manifest validate manifest.json
+konstera build
+```
+
+Or without the CLI:
+
+```bash
+docker buildx build -t {{ .AgentId }}:{{ .Version }} .
+```
+
+## Local test (direct-run, no kernel needed)
+
+```bash
+npm install
+npm run dev  # starts an HTTP server on :8080
+curl -X POST http://localhost:8080/invoke -H 'Content-Type: application/json' \
+    -d '{"input":"friend","invocationId":"local-test"}'
+```
+
+Expect: `{"content":"Hello, friend! From {{ .AgentName }}."}`.
+
+## Deploy
+
+```bash
+konstera deploy
+```
+
+Or manually: upload via the portal (Agents → Upload package).
+
+## Grow from here
+
+- Manifest reference: https://konstera.ai/docs/manifest
+- Kernel MCP services: https://konstera.ai/docs/kernel
+- Cookbook (patterns): https://konstera.ai/docs/cookbook

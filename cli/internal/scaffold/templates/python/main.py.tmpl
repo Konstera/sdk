@@ -1,0 +1,19 @@
+"""{{ .AgentName }} — a Konstera agent in Python.
+
+Shaped by `konstera init`. Grow from here:
+  https://konstera.ai/docs/sdk-quickstart
+"""
+from __future__ import annotations
+
+from konstera_sdk import Agent, AgentContext, AgentRequest, AgentResponse, run
+
+
+class {{ .ClassName }}(Agent):
+    async def handle(self, req: AgentRequest, ctx: AgentContext) -> AgentResponse:
+        name = (req.input or "").strip() or "world"
+        await ctx.log.info(f"Hello, {name}!", invocation_id=req.invocation_id)
+        return AgentResponse(content=f"Hello, {name}! From {{ .AgentName }}.")
+
+
+if __name__ == "__main__":
+    run({{ .ClassName }}())
