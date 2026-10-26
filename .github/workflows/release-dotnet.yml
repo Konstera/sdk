@@ -8,9 +8,10 @@ name: release-dotnet
 #
 # Required secrets (one-time setup, see RELEASING.md):
 #   None. NuGet trusted publishing: NuGet/login exchanges the job's GitHub
-#   OIDC token for a short-lived API key. Policy on nuget.org (owner Vikrm77):
-#   repo Konstera/sdk, workflow release-dotnet.yml, no environment,
-#   glob Konstera.*. See RELEASING.md.
+#   OIDC token for a short-lived API key. Policy on nuget.org, created by
+#   user masood.ahmad, package owner = the Konstera organization: repo
+#   Konstera/sdk, workflow release-dotnet.yml, no environment, glob Konstera.*.
+#   See RELEASING.md.
 
 on:
   push:
@@ -67,7 +68,7 @@ jobs:
         id: login
         uses: NuGet/login@v1
         with:
-          user: Vikrm77
+          user: masood.ahmad  # nuget.org user who created the policy (not the package owner)
 
       - name: Push to NuGet
         env:
@@ -147,7 +148,7 @@ jobs:
         id: login
         uses: NuGet/login@v1
         with:
-          user: Vikrm77
+          user: masood.ahmad  # nuget.org user who created the policy (not the package owner)
 
       - name: Push to NuGet
         env:

@@ -77,15 +77,16 @@ These are **one-time** per registry. Secret names must match the workflow refere
 
 nuget.org redirects `/account/apikeys` to Trusted Publishing and discourages API keys for CI. The workflow's `NuGet/login` step exchanges the job's GitHub OIDC token for a short-lived API key, so there is no secret to store or rotate.
 
-1. Sign in to [nuget.org](https://www.nuget.org/) as the package owner (`Vikrm77`).
+1. Sign in to [nuget.org](https://www.nuget.org/) as an **admin of the `Konstera` organization** (currently `masood.ahmad`). Packages must be owned by the org, never by a personal account.
 2. At `/account/trustedpublishing`, create a policy:
    - Policy name: `Konstera SDK (GitHub Actions)`
-   - Package owner: `Vikrm77`
+   - Package owner: **`Konstera`** (the organization)
    - Repository owner / repository: `Konstera` / `sdk`
    - Workflow file: `release-dotnet.yml`
    - Environment: (blank, because the dotnet jobs don't use one)
+   - Scope: Push → *Push new packages and package versions*; glob `Konstera.*`
 3. A new policy must be **used within 7 days** to become permanent. Otherwise click **Activate for 7 days** on the same page and publish within the window.
-4. `release-dotnet.yml` passes `user: Vikrm77` to `NuGet/login`. If the owner account changes, update both the policy and that line.
+4. `release-dotnet.yml` passes `user: masood.ahmad` to `NuGet/login`. That is the nuget.org user who **created** the policy, not the package owner. If someone else recreates the policy, change that line to their username.
 
 No GitHub secret is needed. Both jobs need `permissions: id-token: write`, which is already set.
 
@@ -149,7 +150,7 @@ Pre-release suffixes (`-rc1`, `-alpha.1`) are **not supported** by the current w
 The git tag version doesn't match the version in the package metadata file. Either (a) bump the metadata and re-tag, or (b) delete the mismatched tag and push a correct one. The verify step is intentional — it prevents accidentally publishing a 0.5.1 tagged as `sdk-python-v0.5.0`.
 
 ### NuGet login step fails
-The trusted publishing policy is missing, inactive (not used within 7 days of creation), or doesn't match the repo, workflow file, or owner `Vikrm77`; or the job lacks `id-token: write`. Check the policy at nuget.org/account/trustedpublishing and use **Activate for 7 days** if it has lapsed.
+The trusted publishing policy is missing, inactive (not used within 7 days of creation), or doesn't match the repo, workflow file, or the workflow's `user:` isn't the user who created the policy; or the job lacks `id-token: write`. Check the policy at nuget.org/account/trustedpublishing and use **Activate for 7 days** if it has lapsed.
 
 ### NuGet publish fails with 409 Conflict
 Version already published. NuGet forbids overwriting a version. Bump to a new patch and re-tag. The workflow uses `--skip-duplicate` so a re-run with the SAME tag succeeds (no-op), but a new tag with the SAME version fails here.
