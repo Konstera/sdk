@@ -11,7 +11,7 @@ Full docs at **[konstera.ai/docs](https://konstera.ai/docs)**. This README is th
 | Language | Package | Install | Minimal agent |
 |---|---|---|---|
 | **Python** | [`konstera-sdk`](./python/) · PyPI | `pip install konstera-sdk` | [python/README.md](./python/README.md) |
-| **TypeScript** | [`konstera-sdk`](./typescript/) · npm | `npm add konstera-sdk` | [typescript/README.md](./typescript/README.md) |
+| **TypeScript** | [`@konstera/sdk`](./typescript/) · npm | `npm add @konstera/sdk` | [typescript/README.md](./typescript/README.md) |
 | **.NET** | [`Konstera.Sdk`](./dotnet/) · NuGet | `dotnet add package Konstera.Sdk` | [dotnet/README.md](./dotnet/README.md) |
 
 All three cover the same **14 kernel services** (`log`, `llm`, `state`, `vector`, `credentials`, `cost`, `tool`, `agents`, `artifact`, `human`, `rule`, `connector`, `capability`, `semantic`) with identical shape and graceful-degradation semantics. Pick whichever runtime fits your team.
@@ -21,7 +21,7 @@ All three cover the same **14 kernel services** (`log`, `llm`, `state`, `vector`
 ```
 sdk/
 ├── python/              # konstera-sdk (Python) + konstera-sdk-contexts
-├── typescript/          # konstera-sdk + konstera-sdk-contexts (pnpm workspace)
+├── typescript/          # @konstera/sdk + @konstera/sdk-contexts (pnpm workspace)
 ├── dotnet/              # Konstera.Sdk + Konstera.Sdk.Contexts (dotnet 10)
 ├── cli/                 # konstera CLI (.NET 10 AoT; planned Phase 2)
 ├── devx-mcp/            # @konstera/devx-mcp — MCP server exposing the capability catalogue
@@ -40,7 +40,7 @@ Alongside each language SDK ships a **typed-constants companion** so agents refe
 | Package | Install |
 |---|---|
 | `konstera-sdk-contexts` (PyPI) | `pip install konstera-sdk-contexts` |
-| `konstera-sdk-contexts` (npm) | `npm add konstera-sdk-contexts` |
+| `@konstera/sdk-contexts` (npm) | `npm add @konstera/sdk-contexts` |
 | `Konstera.Sdk.Contexts` (NuGet) | `dotnet add package Konstera.Sdk.Contexts` |
 
 All three share the same `MAJOR.MINOR` as the source JSON in `schemas/standard-context-pack-v1.json`. A CI drift-gate in `sdk-check.yml` catches un-regenerated constants on PR.
@@ -100,7 +100,7 @@ Working templates + end-to-end tests of the SDK, published in [`Konstera/agents`
 ## License
 
 Dual-licensed:
-- **Apache-2.0** — `konstera-sdk-contexts` (all three languages), `@konstera/devx-mcp`, `cli/`, `schemas/`, `examples/`, `scripts/`
+- **Apache-2.0** — `konstera-sdk-contexts` (PyPI), `@konstera/sdk-contexts` (npm), `Konstera.Sdk.Contexts` (NuGet), `@konstera/devx-mcp`, `cli/`, `schemas/`, `examples/`, `scripts/`
 - **BUSL-1.1** — `konstera-sdk` (Python), `Konstera.Sdk` (.NET), `konstera-sdk` (TypeScript when shipped)
 
 See [ADR-035](https://github.com/Konstera/platform/blob/develop/platform/docs/adr/035-public-developer-stack-and-repo-topology.md) for the licence rationale.

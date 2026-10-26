@@ -18,7 +18,7 @@ The source for all five packages is in-tree, builds green, release workflows are
 
 - [x] **NuGet publish pipeline** for `Konstera.Sdk` + `Konstera.Sdk.Contexts` — [`.github/workflows/release-dotnet.yml`](./.github/workflows/release-dotnet.yml). Tag: `sdk-dotnet-v*` + `sdk-dotnet-contexts-v*`. Secret: `NUGET_API_KEY`.
 - [x] **PyPI publish pipeline** for `konstera-sdk` + `konstera-sdk-contexts` — [`.github/workflows/release-python.yml`](./.github/workflows/release-python.yml). Tag: `sdk-python-v*` + `sdk-python-contexts-v*`. Auth: GitHub OIDC trusted publisher (no long-lived token).
-- [x] **npm publish pipeline** for `konstera-sdk-contexts` — [`.github/workflows/release-typescript.yml`](./.github/workflows/release-typescript.yml). Tag: `sdk-ts-contexts-v*`. Secret: `NPM_TOKEN` (classic token for first publish; migrate to OIDC post-first-publish).
+- [x] **npm publish pipeline** for `@konstera/sdk-contexts` — [`.github/workflows/release-typescript.yml`](./.github/workflows/release-typescript.yml). Tag: `sdk-ts-contexts-v*`. Secret: `NPM_TOKEN` (classic token for first publish; migrate to OIDC post-first-publish).
 - [x] **Semver policy** documented in [`RELEASING.md`](./RELEASING.md) + this file §semver below.
 - [x] **Release-tag convention** fixed and documented in [`RELEASING.md`](./RELEASING.md).
 - [ ] **Repo-admin one-time setup** (not code — gates all first publishes):

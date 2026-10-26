@@ -1,4 +1,4 @@
-# konstera-sdk-contexts
+# @konstera/sdk-contexts
 
 Typed constants for the **Konstera Standard Context Pack v1** — canonical glossary / skill / ontology-entity names that every retail-core seed pack guarantees.
 
@@ -11,7 +11,7 @@ A Konstera agent's manifest declares `contextRequirements`. If the agent hard-co
 Reference the constants instead:
 
 ```typescript
-import { ContextTerms, ContextSkills, ContextEntities } from "konstera-sdk-contexts";
+import { ContextTerms, ContextSkills, ContextEntities } from "@konstera/sdk-contexts";
 
 const manifest = {
   contextRequirements: {
@@ -52,7 +52,7 @@ So a function signature `function requireTerm(name: ContextTermsValue)` only acc
 Need descriptions, domains, canonical units? Import the raw pack JSON:
 
 ```typescript
-import pack from "konstera-sdk-contexts/pack.json" assert { type: "json" };
+import pack from "@konstera/sdk-contexts/pack.json" assert { type: "json" };
 console.log(pack.glossary.refund_window_days.description);
 ```
 
@@ -60,7 +60,7 @@ console.log(pack.glossary.refund_window_days.description);
 
 - Package version follows the pack version. **Pack v1 → `1.x.x`**.
 - Adding names is a non-breaking **minor** bump; removing / renaming a name is **major**.
-- Pack v2 (planned finance + HR expansion) ships as `konstera-sdk-contexts` `2.x.x`.
+- Pack v2 (planned finance + HR expansion) ships as `@konstera/sdk-contexts` `2.x.x`.
 
 ## License
 
