@@ -91,3 +91,23 @@ jobs:
       - name: Test konstera-sdk (vitest)
         working-directory: typescript/packages/konstera-sdk
         run: pnpm run test
+      - name: Version constants match package.json
+        # VERSION / PACKAGE_VERSION are hand-kept literals; they had drifted
+        # (0.3.0 and 1.0.0 while 0.4.3 and 1.0.3 were published).
+        working-directory: typescript/packages
+        run: |
+          node -e '
+            const fs = require("fs");
+            let fail = 0;
+            for (const [pkg, name] of [["konstera-sdk", "VERSION"], ["konstera-sdk-contexts", "PACKAGE_VERSION"]]) {
+              const want = require(`./${pkg}/package.json`).version;
+              const src = fs.readFileSync(`${pkg}/src/index.ts`, "utf8");
+              const got = (src.match(new RegExp(`export const ${name} = "([^"]+)"`)) || [])[1];
+              console.log(`${pkg}: package.json=${want} ${name}=${got}`);
+              if (want !== got) {
+                console.log(`::error file=typescript/packages/${pkg}/src/index.ts::${name} is ${got} but package.json is ${want}`);
+                fail = 1;
+              }
+            }
+            process.exit(fail);
+          '

@@ -27,11 +27,17 @@ from __future__ import annotations
 
 import importlib.resources as _res
 import json as _json
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _dist_version
 from typing import Any
 
 from ._generated import ContextEntities, ContextSkills, ContextTerms
 
-__version__ = "1.0.1"
+# Read from the installed distribution so it always matches pyproject.toml.
+try:
+    __version__ = _dist_version("konstera-sdk-contexts")
+except PackageNotFoundError:  # pragma: no cover - source tree not installed
+    __version__ = "0.0.0+unknown"
 PACK_VERSION = "v1"
 
 __all__ = [

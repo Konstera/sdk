@@ -1,10 +1,11 @@
 // Konstera Standard Context Pack v1 — typed constants (TypeScript).
 //
-// Mirror of Konstera.Sdk.Contexts (NuGet) and konstera-sdk-contexts (PyPI).
+// Mirror of Konstera.Sdk.Contexts (NuGet) and konstera-sdk-contexts (PyPI);
+// published to npm as @konstera/sdk-contexts.
 //
 // Reference canonical names so a typo fails at `tsc`, not at install:
 //
-//   import { ContextTerms, ContextSkills, ContextEntities } from "konstera-sdk-contexts";
+//   import { ContextTerms, ContextSkills, ContextEntities } from "@konstera/sdk-contexts";
 //
 //   const manifest = {
 //     contextRequirements: {
@@ -35,4 +36,5 @@ export {
 } from "./generated.js";
 
 export const PACK_VERSION = "v1" as const;
-export const PACKAGE_VERSION = "1.0.0" as const;
+// Keep in step with package.json "version"; sdk-check fails the build if they differ.
+export const PACKAGE_VERSION = "1.0.3" as const;
