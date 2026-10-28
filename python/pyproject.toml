@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "konstera-sdk"
-version = "0.6.2"
+version = "0.6.3"
 description = "Python SDK for building Konstera agents. Wraps the MCP callback protocol and the /invoke HTTP contract so agent authors write business logic, not plumbing."
 readme = "README.md"
 license = { text = "Apache-2.0" }

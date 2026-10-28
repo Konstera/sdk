@@ -76,4 +76,4 @@ export type {
 export type { AgentRequest, AgentResponse } from "./types.js";
 
 // Keep in step with package.json "version"; sdk-check fails the build if they differ.
-export const VERSION = "0.4.3";
+export const VERSION = "0.4.4";

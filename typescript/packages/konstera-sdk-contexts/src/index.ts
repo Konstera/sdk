@@ -37,4 +37,4 @@ export {
 
 export const PACK_VERSION = "v1" as const;
 // Keep in step with package.json "version"; sdk-check fails the build if they differ.
-export const PACKAGE_VERSION = "1.0.3" as const;
+export const PACKAGE_VERSION = "1.0.4" as const;
