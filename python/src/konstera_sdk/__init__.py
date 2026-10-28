@@ -20,6 +20,7 @@ from .artifact import (
 from .artifact import (
     PutResult as ArtifactPutResult,
 )
+from .browser import BrowserService, BrowserSession
 from .capability import (
     CapabilityError,
     CapabilityService,
@@ -63,6 +64,8 @@ __all__ = [
     "ArtifactListItem",
     "ArtifactPutResult",
     "ArtifactService",
+    "BrowserService",
+    "BrowserSession",
     "CapabilityError",
     "CapabilityService",
     "CapabilityUnbound",

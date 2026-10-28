@@ -60,6 +60,7 @@ ctx.agent_id        # str — e.g. "io.konstera.hello-world-python"
 ctx.agent_version   # str — e.g. "0.1.0"
 ctx.log             # LogService — ctx.log.info/warn/error
 ctx.llm             # LlmService — ctx.llm.complete (stub in M6)
+ctx.browser         # BrowserService — kernel-hosted browser sessions
 ```
 
 ### `LogService`
@@ -79,6 +80,18 @@ text = await ctx.llm.complete(model="claude-sonnet-4-6", prompt="Hello")
 ```
 
 Real Claude / OpenAI / Gemini adapters land in M10 (SPEC §10). Interface is stable now; agent code written today will keep working when the stub goes away.
+
+### `BrowserService`
+
+```python
+async with await ctx.browser.open_session("amazon_uk") as page:
+    await page.navigate("https://www.amazon.co.uk/gp/css/order-history")
+    await page.type_secret("#ap_email", "email")      # typed by reference
+    await page.handoff_to_human("CAPTCHA shown", until_url_contains="order-history")
+    rows = await page.extract(".order-card", {"id": {"selector": ".order-id"}})
+```
+
+Sessions run in a browser the kernel controls, against a connection granted to the agent. `type_secret` names a secret field of the connection (`email`, `password`, `totp`, ...); the kernel types the value, so secrets never reach agent code. Send CAPTCHA and any challenge the agent does not recognise to `handoff_to_human`. There is no CAPTCHA solving. The session closes when the `async with` block exits.
 
 ### `run(agent, port=8080)`
 
