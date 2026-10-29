@@ -32,7 +32,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -374,31 +373,18 @@ func readInstalledVersion(dir string) (string, bool) {
 	return "", false
 }
 
-// nextStepHint prints the IDE-specific "what to do now" instruction. For
-// Claude Code the path is a `claude --plugin-dir` invocation; other IDEs
-// will add their own case as plugins ship for them.
+// nextStepHint prints the IDE-specific "what to do now" instruction.
+// For Claude Code the next step is `konstera plugin activate claude-code`
+// which symlinks the install into ~/.claude/plugins/. Other IDEs will add
+// their own case as plugins ship for them.
 func nextStepHint(slug, installedPath string) string {
 	switch slug {
 	case "claude-code":
-		return fmt.Sprintf(
-			"To activate: restart Claude Code with --plugin-dir, e.g.\n"+
-				"    claude --plugin-dir %s\n"+
-				"Then run /konstera-signin inside Claude Code to pair this install to your tenant.",
-			quoteForShell(installedPath))
+		return "Next: run `konstera plugin activate claude-code`\n" +
+			"That symlinks the install into ~/.claude/plugins/claude-code so Claude Code\n" +
+			"auto-discovers it on next session start. Then /konstera-signin inside Claude Code."
 	default:
 		return fmt.Sprintf("Installed at %s. See the plugin's README for activation instructions.", installedPath)
 	}
 }
 
-func quoteForShell(p string) string {
-	if runtime.GOOS == "windows" {
-		return `"` + p + `"`
-	}
-	// Minimal POSIX quoting: wrap in single quotes if the path contains
-	// anything unusual. Konstera home paths are typically plain so this
-	// is cheap to be defensive on.
-	if strings.ContainsAny(p, " \t\"'$`\\") {
-		return "'" + strings.ReplaceAll(p, "'", `'\''`) + "'"
-	}
-	return p
-}
