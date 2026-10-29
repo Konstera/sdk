@@ -91,7 +91,17 @@ async with await ctx.browser.open_session("amazon_uk") as page:
     rows = await page.extract(".order-card", {"id": {"selector": ".order-id"}})
 ```
 
-Sessions run in a browser the kernel controls, against a connection granted to the agent. `type_secret` names a secret field of the connection (`email`, `password`, `totp`, ...); the kernel types the value, so secrets never reach agent code. Send CAPTCHA and any challenge the agent does not recognise to `handoff_to_human`. There is no CAPTCHA solving. The session closes when the `async with` block exits.
+Sessions run in a browser the kernel controls, against a connection granted to the agent, usually a **Website login** connection (site, username, password, optional authenticator key, optional extra fields such as `pin`). `type_secret` names a secret field of the connection (`username`, `password`, `totp`, or an extra field such as `pin`); the kernel types the value, only on the connection's own site, so secrets never reach agent code. Send CAPTCHA, passkey prompts and any challenge the agent does not recognise to `handoff_to_human`. There is no CAPTCHA solving. The session closes when the `async with` block exits.
+
+### `AgentFailure`
+
+```python
+from konstera_sdk import AgentFailure
+
+raise AgentFailure("The site refused the sign-in; check the connection.", category="action_needed")
+```
+
+Uncategorised exceptions are recorded as `agent_bug`. Raise `AgentFailure` (or subclass it, or give your exception a `category` attribute) when the cause is outside your code: `dependency_failure` (an outside system refused or failed), `action_needed` (a person must act first; not retried), `input_invalid`, `credential_missing`.
 
 ### `run(agent, port=8080)`
 
