@@ -5,6 +5,9 @@ the conceptual model shared with the .NET SDK.
 """
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _dist_version
+
 from .agent import Agent
 from .agents import AgentInvokeResult, AgentsService
 from .artifact import (
@@ -49,7 +52,12 @@ from .tool import ToolService
 from .types import AgentFailure, AgentRequest, AgentResponse
 from .vector import VectorHit, VectorService
 
-__version__ = "0.12.0"  # ADR-037 Step 3.5 B.2 — ctx.semantic.ontology_lookup() + OntologyEntity
+# Read from the installed distribution so it always matches pyproject.toml
+# (a hand-kept literal had drifted to 0.12.0 while 0.6.x was published).
+try:
+    __version__ = _dist_version("konstera-sdk")
+except PackageNotFoundError:  # pragma: no cover - source tree not installed
+    __version__ = "0.0.0+unknown"
 
 __all__ = [
     "Agent",

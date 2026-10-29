@@ -1,9 +1,9 @@
 /**
- * konstera-sdk — TypeScript SDK for Konstera agents.
+ * @konstera/sdk — TypeScript SDK for Konstera agents.
  *
  * Build an agent in ~10 lines:
  *
- *   import { Agent, AgentContext, AgentRequest, AgentResponse, run } from "konstera-sdk";
+ *   import { Agent, AgentContext, AgentRequest, AgentResponse, run } from "@konstera/sdk";
  *
  *   class HelloAgent extends Agent {
  *     async handle(req: AgentRequest, ctx: AgentContext): Promise<AgentResponse> {
@@ -75,4 +75,5 @@ export type {
 
 export type { AgentRequest, AgentResponse } from "./types.js";
 
-export const VERSION = "0.3.0";
+// Keep in step with package.json "version"; sdk-check fails the build if they differ.
+export const VERSION = "0.4.4";

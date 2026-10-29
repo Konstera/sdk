@@ -55,7 +55,8 @@ For any package:
 1. **Bump the version** in the metadata file:
    - `.NET`: `<Version>X.Y.Z</Version>` in `dotnet/src/<Package>/<Package>.csproj`
    - Python: `version = "X.Y.Z"` in `python/pyproject.toml` or `python/konstera-sdk-contexts/pyproject.toml`
-   - TypeScript: `"version": "X.Y.Z"` in `typescript/packages/konstera-sdk-contexts/package.json`
+   - TypeScript: `"version": "X.Y.Z"` in `typescript/packages/<package>/package.json`, **and** the matching constant in its `src/index.ts` (`VERSION` in `konstera-sdk`, `PACKAGE_VERSION` in `konstera-sdk-contexts`). The `sdk-check` workflow fails if they differ.
+   - Python needs nothing else: `__version__` is read from the installed package metadata.
 2. **If it's a context pack**: regenerate constants to catch any drift:
    ```sh
    python scripts/generate_constants.py

@@ -1,5 +1,5 @@
 // Post-build step: copies the raw pack JSON into dist/ so consumers can
-// import "konstera-sdk-contexts/pack.json" for metadata-driven UIs.
+// import "@konstera/sdk-contexts/pack.json" for metadata-driven UIs.
 // The source of truth is sdk/schemas/standard-context-pack-v1.json.
 import { copyFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
