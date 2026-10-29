@@ -14,6 +14,23 @@ version: 2
 
 project_name: konstera
 
+# Monorepo config — this GoReleaser config lives at cli/.goreleaser.yml and
+# is one of several release configs in the sdk/ repo (release-python.yml,
+# release-dotnet.yml, release-typescript.yml, release-devx-mcp.yml, …).
+#
+# The `tag_prefix` field tells GoReleaser v2 that tags matching the pattern
+# <prefix><semver> are ours, and that the <prefix> part should be stripped
+# before parsing. Without this, GoReleaser v2 refuses `cli-v0.1.0` as
+# "invalid semver" because it strictly parses the whole tag as semver
+# (v1's "find semver anywhere in the tag" fallback was removed).
+#
+# `dir` tells it to filter the auto-generated changelog to commits that
+# touched the cli/ subdirectory — so a release note for the CLI doesn't
+# include a Python SDK commit from the same tag range.
+monorepo:
+  tag_prefix: cli-
+  dir: cli
+
 before:
   hooks:
     - go mod tidy
