@@ -14,22 +14,24 @@ version: 2
 
 project_name: konstera
 
-# Monorepo config — this GoReleaser config lives at cli/.goreleaser.yml and
-# is one of several release configs in the sdk/ repo (release-python.yml,
-# release-dotnet.yml, release-typescript.yml, release-devx-mcp.yml, …).
+# The sdk/ repo is a monorepo (python/, dotnet/, typescript/, cli/, devx-mcp/)
+# with per-package release workflows and per-package tag prefixes (python-v*,
+# dotnet-v*, cli-v*, …). GoReleaser v2 (OSS) strictly parses the whole tag as
+# semver and the `monorepo` block that handles prefix-stripping is Pro-only.
 #
-# The `tag_prefix` field tells GoReleaser v2 that tags matching the pattern
-# <prefix><semver> are ours, and that the <prefix> part should be stripped
-# before parsing. Without this, GoReleaser v2 refuses `cli-v0.1.0` as
-# "invalid semver" because it strictly parses the whole tag as semver
-# (v1's "find semver anywhere in the tag" fallback was removed).
+# Workaround: the workflow (.github/workflows/release-cli.yml) strips the
+# `cli-` prefix in a shell step and passes the clean semver through to
+# GoReleaser via the GORELEASER_CURRENT_TAG env var. GoReleaser then sees
+# a valid v0.1.0 tag and ships the release. Nothing in this config
+# references the raw git tag directly, so the override is complete.
 #
-# `dir` tells it to filter the auto-generated changelog to commits that
-# touched the cli/ subdirectory — so a release note for the CLI doesn't
-# include a Python SDK commit from the same tag range.
-monorepo:
-  tag_prefix: cli-
-  dir: cli
+# changelog.disable=true below sidesteps the related previous-tag problem:
+# with no monorepo filter, GoReleaser's "find previous tag" step would
+# pick up the latest sibling package release (e.g. sdk-ts-v0.4.4) and
+# generate a changelog diff that mixes CLI + TypeScript SDK commits. For
+# the first release there's nothing to compare against anyway; when we
+# add changelog support later it'll be via a hand-maintained
+# cli/CHANGELOG.md referenced here.
 
 before:
   hooks:
@@ -71,14 +73,11 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  sort: asc
-  use: github
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "^ci:"
+  # See header comment: monorepo-wide tag history makes the auto-changelog
+  # mix commits from sibling packages (python/, dotnet/, typescript/, …).
+  # Disabled for now; a later slice adds a hand-maintained cli/CHANGELOG.md
+  # and references it here via release.extra_files or similar.
+  disable: true
 
 # Homebrew tap + Scoop bucket are commented out for the first release.
 # The first `cli-v0.1.0` tag ships GitHub Release binaries only (zero one-
