@@ -15,17 +15,21 @@ func newPluginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plugin",
 		Short: "Install and manage Konstera plugins for coding agents",
+		// Backtick-wrapped command names (`konstera plugin install …`) in
+		// cobra help text would close this raw string early — Go has no
+		// escape for backticks inside backtick strings. Use plain prose
+		// without backticks; cobra renders the help text as-is.
 		Long: `Install and manage Konstera plugins for coding agents.
 
 Each plugin wraps the Konstera MCP server for one specific IDE — Claude
 Code, Cursor, Antigravity, etc. — so your editor can see Konstera tenant
 shape and act on it without you having to hand-edit MCP config files.
 
-Plugins are distributed by the Konstera Platform; `konstera plugin install
-<slug>` downloads the latest release, verifies its sha256, and extracts
-to ~/.konstera/plugins/<slug>/. The next step is IDE-specific (e.g.
-Claude Code needs --plugin-dir pointing at the extracted directory); the
-install command prints the exact invocation.`,
+Plugins are distributed by the Konstera Platform. 'konstera plugin
+install <slug>' downloads the latest release, verifies its sha256, and
+extracts to ~/.konstera/plugins/<slug>/. The next step is IDE-specific
+(e.g. Claude Code needs --plugin-dir pointing at the extracted
+directory); the install command prints the exact invocation.`,
 	}
 	cmd.AddCommand(newPluginInstallCmd())
 	return cmd
