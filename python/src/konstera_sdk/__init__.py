@@ -46,7 +46,7 @@ from .semantic import (
 )
 from .state import StateService
 from .tool import ToolService
-from .types import AgentRequest, AgentResponse
+from .types import AgentFailure, AgentRequest, AgentResponse
 from .vector import VectorHit, VectorService
 
 __version__ = "0.12.0"  # ADR-037 Step 3.5 B.2 — ctx.semantic.ontology_lookup() + OntologyEntity
@@ -54,6 +54,7 @@ __version__ = "0.12.0"  # ADR-037 Step 3.5 B.2 — ctx.semantic.ontology_lookup(
 __all__ = [
     "Agent",
     "AgentContext",
+    "AgentFailure",
     "AgentGetResult",
     "AgentInvokeResult",
     "AgentRequest",
