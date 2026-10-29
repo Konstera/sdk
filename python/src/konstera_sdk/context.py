@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from ._mcp import KernelMcpClient
 from .agents import AgentsService
 from .artifact import ArtifactService
+from .browser import BrowserService
 from .capability import CapabilityService
 from .connector import ConnectorService
 from .cost import CostService
@@ -77,6 +78,7 @@ class AgentContext:
     connector: ConnectorService  # ADR-009
     capability: CapabilityService  # ADR-013 — purpose-first indirection over connectors
     semantic: SemanticService    # ADR-037 — tenant semantic plane (glossary / skills / ontology)
+    browser: BrowserService      # kernel-hosted browser sessions over a granted connection
 
     @classmethod
     def from_env(cls, mcp: KernelMcpClient, defaults: dict[str, str] | None = None) -> AgentContext:
@@ -119,4 +121,5 @@ class AgentContext:
             connector=ConnectorService(mcp, instance_id),
             capability=CapabilityService(mcp, instance_id),
             semantic=SemanticService(mcp, instance_id),
+            browser=BrowserService(mcp, instance_id),
         )

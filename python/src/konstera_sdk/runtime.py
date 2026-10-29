@@ -66,10 +66,13 @@ def build_app(agent: Agent, ctx: AgentContext) -> Starlette:
                 resp = await agent.handle(req, ctx)
         except Exception as ex:
             logger.exception("agent.handle failed for invocation %s", req.invocation_id)
-            return JSONResponse(
-                {"error": {"type": type(ex).__name__, "message": str(ex)}},
-                status_code=500,
-            )
+            error: dict[str, str] = {"type": type(ex).__name__, "message": str(ex)}
+            # An exception may say what kind of failure it was (see
+            # AgentFailure); the platform uses it instead of "agent_bug".
+            category = getattr(ex, "category", None)
+            if isinstance(category, str) and category:
+                error["category"] = category
+            return JSONResponse({"error": error}, status_code=500)
         return JSONResponse(_serialize_response(resp))
 
     async def lifespan(_app: Starlette):  # type: ignore[no-untyped-def]

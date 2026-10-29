@@ -376,7 +376,8 @@
       "enum": [
         "log", "llm", "state", "vector", "credentials", "cost",
         "tool", "agents", "artifact", "human", "rule", "connector", "prompt",
-        "capability"
+        "capability",
+        "browser"
       ]
     }
   }

@@ -16,6 +16,8 @@ Full docs at **[konstera.ai/docs](https://konstera.ai/docs)**. This README is th
 
 All three cover the same **14 kernel services** (`log`, `llm`, `state`, `vector`, `credentials`, `cost`, `tool`, `agents`, `artifact`, `human`, `rule`, `connector`, `capability`, `semantic`) with identical shape and graceful-degradation semantics. Pick whichever runtime fits your team.
 
+The Python SDK also has `browser` (kernel-hosted browser sessions over a granted connection; secrets typed by reference). TypeScript and .NET follow later.
+
 ## What else is here
 
 ```
