@@ -63,30 +63,43 @@ changelog:
       - "^chore:"
       - "^ci:"
 
-# Homebrew tap (one-time setup: create https://github.com/Konstera/homebrew-tap).
-brews:
-  - name: konstera
-    repository:
-      owner: Konstera
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Formula
-    homepage: https://konstera.ai
-    description: "The Konstera agent-authoring CLI"
-    license: Apache-2.0
-    test: |
-      system "#{bin}/konstera version"
+# Homebrew tap + Scoop bucket are commented out for the first release.
+# The first `cli-v0.1.0` tag ships GitHub Release binaries only (zero one-
+# time setup). To enable the package-manager install UX later:
+#
+#   1. Create https://github.com/Konstera/homebrew-tap     (empty public repo)
+#   2. Create https://github.com/Konstera/scoop-bucket     (empty public repo)
+#   3. Mint a GitHub PAT with `contents: write` on both; add as repo
+#      secrets HOMEBREW_TAP_GITHUB_TOKEN + SCOOP_BUCKET_GITHUB_TOKEN on
+#      THIS sdk repo (Settings → Secrets → Actions).
+#   4. Uncomment the blocks below, bump cli version, tag, push — the next
+#      release updates the tap + bucket automatically.
+#
+# Doing this out of band lets the plumbing land + first release prove itself
+# before we add the two companion repos.
 
-# Scoop bucket (one-time setup: create https://github.com/Konstera/scoop-bucket).
-scoops:
-  - name: konstera
-    repository:
-      owner: Konstera
-      name: scoop-bucket
-      token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
-    homepage: https://konstera.ai
-    description: "The Konstera agent-authoring CLI"
-    license: Apache-2.0
+# brews:
+#   - name: konstera
+#     repository:
+#       owner: Konstera
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     directory: Formula
+#     homepage: https://konstera.ai
+#     description: "The Konstera agent-authoring CLI"
+#     license: Apache-2.0
+#     test: |
+#       system "#{bin}/konstera version"
+
+# scoops:
+#   - name: konstera
+#     repository:
+#       owner: Konstera
+#       name: scoop-bucket
+#       token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
+#     homepage: https://konstera.ai
+#     description: "The Konstera agent-authoring CLI"
+#     license: Apache-2.0
 
 # Winget manifest (one-time setup: fork https://github.com/microsoft/winget-pkgs).
 # Enable after first stable release; comment out until the fork exists.

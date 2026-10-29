@@ -10,12 +10,11 @@ name: release-cli
 #   - Scoop bucket updated at Konstera/scoop-bucket
 #   - (future) winget manifest PR'd against Konstera/winget-pkgs
 #
-# One-time setup:
-#   - Create https://github.com/Konstera/homebrew-tap (empty repo).
-#   - Create https://github.com/Konstera/scoop-bucket (empty repo).
-#   - Create a GitHub PAT with `contents: write` on both companion repos,
-#     store as repo secret HOMEBREW_TAP_GITHUB_TOKEN + SCOOP_BUCKET_GITHUB_TOKEN
-#     on this (sdk) repo.
+# First-release setup: NONE — GITHUB_TOKEN is auto-provided by Actions.
+# Tag cli-v<X.Y.Z> on main, push, and GitHub Release lands with per-OS
+# binaries. The homebrew-tap + scoop-bucket companion repos are optional
+# follow-ups documented in cli/.goreleaser.yml and the two *_GITHUB_TOKEN
+# env vars below stay unset until those are created.
 
 on:
   push:
@@ -52,5 +51,8 @@ jobs:
           workdir: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only consumed when brews + scoops blocks in cli/.goreleaser.yml
+          # are uncommented. Harmless when the secrets are unset — GoReleaser
+          # only reads them for the blocks that reference them.
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
