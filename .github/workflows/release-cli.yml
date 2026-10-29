@@ -51,6 +51,18 @@ jobs:
           workdir: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GoReleaser v2 (OSS) strictly parses the whole git tag as semver;
+          # the `monorepo` block that strips a tag prefix is Pro-only. We
+          # work around that by passing the pre-stripped version via
+          # GORELEASER_CURRENT_TAG — GoReleaser treats this as authoritative
+          # and never looks at the raw git tag.
+          #
+          # GORELEASER_PREVIOUS_TAG="" disables previous-tag detection so
+          # GoReleaser doesn't walk git history and pick up a sibling
+          # package's tag (e.g. sdk-ts-v0.4.4) as "the previous CLI
+          # release." Changelog is also disabled in the config.
+          GORELEASER_CURRENT_TAG: v${{ steps.version.outputs.version }}
+          GORELEASER_PREVIOUS_TAG: ""
           # Only consumed when brews + scoops blocks in cli/.goreleaser.yml
           # are uncommented. Harmless when the secrets are unset — GoReleaser
           # only reads them for the blocks that reference them.
