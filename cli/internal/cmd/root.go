@@ -28,6 +28,7 @@ Repo: https://github.com/Konstera/sdk/tree/main/cli`,
 		newDeployCmd(),
 		newDevCmd(),
 		newLoginCmd(),
+		newPluginCmd(),
 	)
 	return root
 }
