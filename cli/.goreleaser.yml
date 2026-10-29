@@ -79,6 +79,18 @@ changelog:
   # and references it here via release.extra_files or similar.
   disable: true
 
+# GitHub Release metadata. name_template is the displayed title; the tag
+# this release attaches to is still driven by GORELEASER_CURRENT_TAG from
+# the workflow (v0.1.0, v0.2.0, …), not the real git tag (cli-v*).
+#
+# Making the title explicit — "Konstera CLI vX.Y.Z" — removes the ambiguity
+# a visitor to the GitHub Releases page hit when the title was just the
+# version string: no clue whether that archive is the SDK or the CLI.
+# Users following the install script never see this; it only matters for
+# the (rare) direct-download fallback.
+release:
+  name_template: "Konstera CLI v{{ .Version }}"
+
 # Homebrew tap + Scoop bucket are commented out for the first release.
 # The first `cli-v0.1.0` tag ships GitHub Release binaries only (zero one-
 # time setup). To enable the package-manager install UX later:
