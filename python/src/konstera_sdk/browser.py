@@ -1,7 +1,7 @@
 """BrowserService — drive a real browser session through the kernel.
 
-The kernel owns the browser (a runner process with a visible Chromium
-window); the agent sends one step at a time by session id. Sessions are
+The kernel owns the browser (where it runs is a platform concern, not
+the agent's); the agent sends one step at a time by session id. Sessions are
 opened against a granted connection alias, so the site credentials stay in
 the tenant's connection and never reach agent code:
 
@@ -83,8 +83,8 @@ class BrowserService:
             session is closed on exit, or call `close()` yourself.
 
         Raises:
-            RuntimeError: No grant for the alias, the browser runner is
-                unavailable, or the agent runs in direct-run mode.
+            RuntimeError: No grant for the alias, no browser is available
+                to the platform, or the agent runs in direct-run mode.
         """
         data = _decode(
             await self._mcp.call_tool_for_result(
@@ -247,7 +247,7 @@ class BrowserSession:
         until_url_contains: str | None = None,
         timeout_seconds: int = 300,
     ) -> dict[str, Any]:
-        """Ask a person to act in the visible browser window, then wait.
+        """Ask a person to act in the browser, then wait.
 
         Use this for every CAPTCHA, unexpected OTP prompt or challenge the
         agent does not recognise; never try to solve or evade it. The kernel
