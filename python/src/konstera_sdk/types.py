@@ -77,3 +77,36 @@ class AgentResponse:
     """LLM tool calls the agent made, for observability. Populated by SDK
     helpers (`ctx.llm.complete()` appends automatically). Not required when
     the agent didn't make LLM calls."""
+
+
+class AgentFailure(Exception):
+    """Raise (or subclass) to tell the platform what kind of failure this was.
+
+    Uncategorised exceptions are recorded as ``agent_bug``. When the cause is
+    outside the agent's code, say so, so run history, reports and retries
+    reflect it:
+
+    - ``"dependency_failure"``: an outside system refused or failed
+      (a site is down, a sign-in was refused).
+    - ``"action_needed"``: a person has a step to do first (fix a
+      connection, approve a sign-in); the run is not retried.
+    - ``"input_invalid"``: the input or the instance settings are wrong.
+    - ``"credential_missing"``: a required connection or secret isn't set up.
+
+    Example::
+
+        raise AgentFailure("The site refused the sign-in; check the connection.",
+                           category="action_needed")
+    """
+
+    DEPENDENCY_FAILURE = "dependency_failure"
+    ACTION_NEEDED = "action_needed"
+    INPUT_INVALID = "input_invalid"
+    CREDENTIAL_MISSING = "credential_missing"
+
+    category: str = DEPENDENCY_FAILURE
+
+    def __init__(self, message: str = "", *, category: str | None = None) -> None:
+        super().__init__(message)
+        if category is not None:
+            self.category = category

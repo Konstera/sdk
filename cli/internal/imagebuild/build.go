@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/Konstera/sdk/cli/internal/manifest"
 )
 
 // Options control a build.
@@ -21,8 +23,15 @@ type Options struct {
 	Tag          string // image tag; defaults to <id>:<version> from the manifest
 	Push         bool   // if true, pass --push to docker buildx
 	Platform     string // optional --platform value (e.g. "linux/amd64,linux/arm64")
-	Stdout       io.Writer
-	Stderr       io.Writer
+	// AllowDeprecatedConnectionRequirements lets `konstera build` pass when
+	// the manifest still uses `connectionRequirements[]` (deprecated per
+	// ADR-013; the portability lint under ADR-055 M1.6 refuses by default).
+	// Short-term escape hatch for teams migrating; the long-name flag is
+	// deliberately verbose to discourage casual use and the gate still fires
+	// on individual acceptable-types that look like instance ids.
+	AllowDeprecatedConnectionRequirements bool
+	Stdout                                io.Writer
+	Stderr                                io.Writer
 }
 
 // Manifest is the subset of the agent manifest the builder reads.
@@ -81,6 +90,12 @@ func BuildCommand(opts Options, m *Manifest) ([]string, error) {
 
 // Run executes `docker` with the args from BuildCommand. Streams output to
 // opts.Stdout / opts.Stderr (defaults to os.Stdout / os.Stderr).
+//
+// Before invoking Docker, Run applies the manifest portability lint
+// (ADR-055 M1.6). A lint failure returns before any Docker work happens
+// so the error is cheap and loud. Pass AllowDeprecatedConnectionRequirements
+// to permit the deprecated field during migration; instance-id heuristics
+// still fire under the opt-out.
 func Run(opts Options) error {
 	if opts.ManifestPath == "" {
 		opts.ManifestPath = "./manifest.json"
@@ -89,6 +104,17 @@ func Run(opts Options) error {
 	if err != nil {
 		return err
 	}
+
+	report, err := manifest.Portability(opts.ManifestPath, manifest.LintOptions{
+		AllowDeprecatedConnectionRequirements: opts.AllowDeprecatedConnectionRequirements,
+	})
+	if err != nil {
+		return err
+	}
+	if lintErr := report.Err(); lintErr != nil {
+		return lintErr
+	}
+
 	args, err := BuildCommand(opts, m)
 	if err != nil {
 		return err

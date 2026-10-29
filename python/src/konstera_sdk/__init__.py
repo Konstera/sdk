@@ -23,6 +23,7 @@ from .artifact import (
 from .artifact import (
     PutResult as ArtifactPutResult,
 )
+from .browser import BrowserService, BrowserSession
 from .capability import (
     CapabilityError,
     CapabilityService,
@@ -48,7 +49,7 @@ from .semantic import (
 )
 from .state import StateService
 from .tool import ToolService
-from .types import AgentRequest, AgentResponse
+from .types import AgentFailure, AgentRequest, AgentResponse
 from .vector import VectorHit, VectorService
 
 # Read from the installed distribution so it always matches pyproject.toml
@@ -61,6 +62,7 @@ except PackageNotFoundError:  # pragma: no cover - source tree not installed
 __all__ = [
     "Agent",
     "AgentContext",
+    "AgentFailure",
     "AgentGetResult",
     "AgentInvokeResult",
     "AgentRequest",
@@ -71,6 +73,8 @@ __all__ = [
     "ArtifactListItem",
     "ArtifactPutResult",
     "ArtifactService",
+    "BrowserService",
+    "BrowserSession",
     "CapabilityError",
     "CapabilityService",
     "CapabilityUnbound",
