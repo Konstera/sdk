@@ -47,7 +47,13 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          # --skip=validate turns off GoReleaser's git-state validator which
+          # otherwise verifies that a git tag matching GORELEASER_CURRENT_TAG
+          # (v0.1.0) is pointed at HEAD. In our monorepo the real git tag
+          # is `cli-v0.1.0` — the override makes GoReleaser *think* the tag
+          # is `v0.1.0`, but no such git tag actually exists. Skipping
+          # validate is the documented monorepo workaround.
+          args: release --clean --skip=validate
           workdir: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
