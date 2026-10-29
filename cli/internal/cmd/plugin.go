@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Konstera/sdk/cli/internal/login"
 	"github.com/Konstera/sdk/cli/internal/plugins"
@@ -31,8 +32,60 @@ extracts to ~/.konstera/plugins/<slug>/. The next step is IDE-specific
 (e.g. Claude Code needs --plugin-dir pointing at the extracted
 directory); the install command prints the exact invocation.`,
 	}
-	cmd.AddCommand(newPluginInstallCmd())
+	cmd.AddCommand(
+		newPluginInstallCmd(),
+		newPluginActivateCmd(),
+		newPluginDeactivateCmd(),
+	)
 	return cmd
+}
+
+func newPluginActivateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "activate <slug>",
+		Short: "Activate an installed plugin in its target IDE",
+		// Keep Long free of inner backticks — Go has no escape for backticks
+		// in backtick-delimited raw strings. Use plain prose.
+		Long: `Activate an installed plugin in its target IDE.
+
+After 'konstera plugin install <slug>' extracts a plugin into
+~/.konstera/plugins/<slug>/, this subcommand creates the per-IDE link
+that makes the IDE auto-discover it on next launch — no --plugin-dir
+or similar manual flag needed.
+
+For claude-code: symlinks ~/.konstera/plugins/claude-code into
+~/.claude/plugins/claude-code (or a directory junction on Windows if
+symlink privilege isn't held).
+
+Supported slugs: ` + strings.Join(plugins.SupportedActivateSlugs(), ", ") + `.
+
+Idempotent — a correct link already in place is reported as "already
+active" and succeeds without changes.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return plugins.Activate(cmd.OutOrStdout(), args[0])
+		},
+	}
+}
+
+func newPluginDeactivateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "deactivate <slug>",
+		Short: "Remove the per-IDE activation link (leaves the install in place)",
+		Long: `Remove the per-IDE activation link for a plugin without
+uninstalling it. The plugin files stay at ~/.konstera/plugins/<slug>/;
+only the symlink into the IDE's discovery directory is removed.
+
+Idempotent — nothing to remove is reported and succeeds.
+
+Refuses to remove a link that doesn't point at a Konstera-managed
+install, or a plain directory someone else created. Those cases are
+flagged as errors so you can resolve them manually.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return plugins.Deactivate(cmd.OutOrStdout(), args[0])
+		},
+	}
 }
 
 func newPluginInstallCmd() *cobra.Command {
