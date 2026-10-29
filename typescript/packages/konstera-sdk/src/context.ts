@@ -4,10 +4,12 @@
  *
  * v0.3.0: full Python parity — 14 services (log, llm, state, vector, credentials,
  * cost, tool, agents, artifact, human, rule, connector, capability, semantic).
+ * v0.5.0: + browser (kernel-hosted browser sessions).
  */
 import { KernelMcpClient } from "./mcp.js";
 import { AgentsService } from "./services/agents.js";
 import { ArtifactService } from "./services/artifact.js";
+import { BrowserService } from "./services/browser.js";
 import { CapabilityService } from "./services/capability.js";
 import { ConnectorService } from "./services/connector.js";
 import { CostService } from "./services/cost.js";
@@ -51,6 +53,8 @@ export interface AgentContext {
   readonly connector: ConnectorService;
   readonly capability: CapabilityService;
   readonly semantic: SemanticService;
+  /** Kernel-hosted browser sessions over a granted connection (v0.5.0). */
+  readonly browser: BrowserService;
 }
 
 export interface AgentContextDefaults {
@@ -99,5 +103,6 @@ export function createContext(
     connector: new ConnectorService(mcp, instanceId),
     capability: new CapabilityService(mcp, instanceId),
     semantic: new SemanticService(mcp, instanceId),
+    browser: new BrowserService(mcp, instanceId),
   };
 }

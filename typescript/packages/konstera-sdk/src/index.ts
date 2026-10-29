@@ -73,7 +73,28 @@ export type {
   ClusterPassRate,
 } from "./services/semantic.js";
 
-export type { AgentRequest, AgentResponse } from "./types.js";
+// v0.5.0 — browser sessions + categorised failures (Python 0.7.0 parity)
+export { BrowserService, BrowserSession } from "./services/browser.js";
+export type {
+  BrowserConnection,
+  BrowserWaitUntil,
+  NavigateResult,
+  WaitForResult,
+  ExistsResult,
+  HandoffResult,
+  ExtractField,
+  ExtractRow,
+  TimeoutOptions,
+  WaitForOptions,
+  HandoffOptions,
+} from "./services/browser.js";
+export { AgentFailure } from "./types.js";
+export type {
+  AgentRequest,
+  AgentResponse,
+  AgentFailureCategory,
+  AgentFailureOptions,
+} from "./types.js";
 
 // Keep in step with package.json "version"; sdk-check fails the build if they differ.
-export const VERSION = "0.4.4";
+export const VERSION = "0.5.0";

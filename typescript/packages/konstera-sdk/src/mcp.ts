@@ -56,6 +56,30 @@ export class KernelMcpClient {
     };
   }
 
+  /**
+   * Call a kernel tool where the agent needs the result. Mirror of Python's
+   * `call_tool_for_result`: unlike {@link callTool} it throws in direct-run
+   * mode, and throws when the kernel reports the tool failed (`isError`),
+   * with the kernel's message (including any "[Code] ..." prefix).
+   *
+   * @returns The concatenated text content, or null when there is none.
+   */
+  async callToolForResult(name: string, args: Record<string, unknown>): Promise<string | null> {
+    if (!this.url) {
+      throw new Error(
+        `Cannot call MCP tool '${name}' — KONSTERA_KERNEL_MCP_URL is unset. ` +
+          "This is expected in direct-run mode; the agent should guard " +
+          "against it or run inside a Konstera kernel.",
+      );
+    }
+    await this.ensureConnected();
+    if (!this.client) {
+      throw new Error(`Cannot call MCP tool '${name}' — kernel MCP client is not connected.`);
+    }
+    const result = await this.client.callTool({ name, arguments: args });
+    return toolResultText(name, result as { content?: unknown; isError?: unknown });
+  }
+
   private async ensureConnected(): Promise<void> {
     if (this.client) return;
     if (this.connecting) {
@@ -80,6 +104,26 @@ export class KernelMcpClient {
     await client.connect(transport);
     this.client = client;
   }
+}
+
+/**
+ * Text of a CallToolResult, or throw if the tool reported an error. Mirror of
+ * Python's `tool_result_text`: MCP reports a failed tool as a normal result
+ * with isError=true, so returning that text as data would hide the failure.
+ */
+export function toolResultText(
+  name: string,
+  result: { content?: unknown; isError?: unknown },
+): string | null {
+  const blocks = Array.isArray(result.content)
+    ? (result.content as Array<{ text?: unknown }>)
+    : [];
+  const texts = blocks.filter((c) => typeof c?.text === "string").map((c) => c.text as string);
+  const text = texts.length ? texts.join("") : null;
+  if (result.isError) {
+    throw new Error(text || `MCP tool '${name}' failed without an error message.`);
+  }
+  return text;
 }
 
 let directRunWarningEmitted = false;
