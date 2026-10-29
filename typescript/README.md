@@ -7,7 +7,7 @@ Public TypeScript / Node.js packages for building Konstera agents.
 | Package | Status | Description |
 |---------|--------|-------------|
 | [`@konstera/sdk-contexts`](./packages/konstera-sdk-contexts) | shipped (v1.0.2) | Typed constants for the Konstera Standard Context Pack v1 — reference canonical names without magic strings |
-| [`@konstera/sdk`](./packages/konstera-sdk) | shipped (v0.4.1) | The agent SDK — MCP client/server wrapper, `AgentContext` ergonomics (mirror of `konstera-sdk` on PyPI and `Konstera.Sdk` on NuGet) |
+| [`@konstera/sdk`](./packages/konstera-sdk) | shipped (v0.4.4) | The agent SDK — MCP client/server wrapper, `AgentContext` ergonomics (mirror of `konstera-sdk` on PyPI and `Konstera.Sdk` on NuGet) |
 | `konstera-sdk-manifest` | planned | Zod schema + TypeScript types for the v3 agent manifest |
 
 ## Why TypeScript as the third SDK

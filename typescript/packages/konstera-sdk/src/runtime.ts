@@ -4,10 +4,12 @@
  * Fastify dep) to keep the install footprint small; agents don't need a web
  * framework for three endpoints.
  */
-import { IncomingMessage, Server, ServerResponse, createServer } from "node:http";
+import { createServer } from "node:http";
+import type { IncomingMessage, Server, ServerResponse } from "node:http";
 
 import type { Agent } from "./agent.js";
 import { createContext } from "./context.js";
+import type { AgentContext } from "./context.js";
 import { enterInvocation } from "./invocation-context.js";
 import { KernelMcpClient } from "./mcp.js";
 import type { AgentRequest, AgentResponse } from "./types.js";
@@ -44,7 +46,37 @@ export async function run(agent: Agent, options: RunOptions = {}): Promise<void>
 
   await agent.initialize(ctx);
 
-  const server = createServer(async (req, res) => {
+  const server = buildServer(agent, ctx);
+
+  await listen(server, port);
+
+  const shutdown = async (signal: string): Promise<void> => {
+    // eslint-disable-next-line no-console
+    console.log(`[konstera-sdk] ${signal} received — shutting down.`);
+    server.close();
+    try {
+      await agent.shutdown(ctx);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[konstera-sdk] agent.shutdown() threw:", err);
+    }
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+
+  // eslint-disable-next-line no-console
+  console.log(`[konstera-sdk] agent ${ctx.agentId}@${ctx.agentVersion} listening on :${port}`);
+}
+
+/**
+ * Build the agent's HTTP server (/health, /describe, /invoke) without
+ * listening. Mirror of Python's `build_app`; `run()` uses it, and tests can
+ * listen on an ephemeral port.
+ */
+export function buildServer(agent: Agent, ctx: AgentContext): Server {
+  return createServer(async (req, res) => {
     try {
       if (req.method === "GET" && req.url === "/health") {
         return respondJson(res, 200, {
@@ -74,34 +106,31 @@ export async function run(agent: Agent, options: RunOptions = {}): Promise<void>
       });
     }
   });
+}
 
-  await listen(server, port);
-
-  const shutdown = async (signal: string): Promise<void> => {
-    // eslint-disable-next-line no-console
-    console.log(`[konstera-sdk] ${signal} received — shutting down.`);
-    server.close();
-    try {
-      await agent.shutdown(ctx);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[konstera-sdk] agent.shutdown() threw:", err);
-    }
-    process.exit(0);
+/**
+ * The /invoke error body for a thrown value. Mirror of Python's runtime: an
+ * error may say what kind of failure it was (see AgentFailure) through a
+ * non-empty string `category`; the platform uses it instead of "agent_bug".
+ */
+export function invokeErrorBody(err: unknown): { error: Record<string, string> } {
+  const error: Record<string, string> = {
+    type: err instanceof Error ? err.name : "Error",
+    message: err instanceof Error ? err.message : String(err),
   };
-
-  process.on("SIGTERM", () => void shutdown("SIGTERM"));
-  process.on("SIGINT", () => void shutdown("SIGINT"));
-
-  // eslint-disable-next-line no-console
-  console.log(`[konstera-sdk] agent ${ctx.agentId}@${ctx.agentVersion} listening on :${port}`);
+  const category =
+    err !== null && typeof err === "object" ? (err as { category?: unknown }).category : undefined;
+  if (typeof category === "string" && category) {
+    error["category"] = category;
+  }
+  return { error };
 }
 
 async function handleInvoke(
   req: IncomingMessage,
   res: ServerResponse,
   agent: Agent,
-  ctx: ReturnType<typeof createContext>,
+  ctx: AgentContext,
 ): Promise<void> {
   const body = await readJsonBody(req);
   const agentRequest: AgentRequest = {
@@ -119,12 +148,7 @@ async function handleInvoke(
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(`[konstera-sdk] agent.handle failed for ${agentRequest.invocationId}:`, err);
-    return respondJson(res, 500, {
-      error: {
-        type: err instanceof Error ? err.name : "Error",
-        message: err instanceof Error ? err.message : String(err),
-      },
-    });
+    return respondJson(res, 500, invokeErrorBody(err));
   }
 }
 

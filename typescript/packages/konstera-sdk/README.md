@@ -62,6 +62,9 @@ interface AgentContext {
   readonly agentVersion: string;    // e.g. "0.1.0"
   readonly log: LogService;
   readonly llm: LlmService;
+  readonly browser: BrowserService; // kernel-hosted browser sessions (0.5.0)
+  // ... plus state, vector, credentials, cost, tool, agents, artifact,
+  // human, rule, connector, capability, semantic
 }
 ```
 
@@ -87,6 +90,52 @@ console.log(result.text, result.usage);
 ```
 
 Returns `LlmResult { text, usage: { inputTokens, outputTokens, costUsd } }`.
+
+### `BrowserService` (0.5.0)
+
+```typescript
+await using page = await ctx.browser.openSession("amazon_uk");
+await page.navigate("https://www.amazon.co.uk/gp/css/order-history");
+await page.typeSecret("#ap_email", "username");    // typed by reference
+await page.handoffToHuman("CAPTCHA shown", { untilUrlContains: "order-history" });
+const rows = await page.extract(".order-card", { id: { selector: ".order-id" } });
+```
+
+Sessions run in a browser the kernel controls, against a connection granted to the agent, usually a **Website login** connection (site, username, password, optional authenticator key, optional extra fields such as `pin`). `typeSecret` names a secret field of the connection (`username`, `password`, `totp`, or an extra field such as `pin`); the kernel types the value, only on the connection's own site, so secrets never reach agent code. Send CAPTCHA, passkey prompts and any challenge the agent does not recognise to `handoffToHuman`. There is no CAPTCHA solving. `await using` closes the session when the scope exits (a close failure there is logged, not thrown); or call `page.close()` yourself.
+
+| Method | Kernel tool | Returns |
+|---|---|---|
+| `ctx.browser.openSession(alias)` | `browser_open_session` | `BrowserSession` (`sessionId`, `connection`) |
+| `navigate(url, waitUntil = "load")` | `browser_navigate` | `{ url, title }` |
+| `click(selector, { timeoutSeconds = 15 })` | `browser_click` | `void` |
+| `type(selector, text, { timeoutSeconds = 15 })` | `browser_type` | `void` (plain, non-secret text only) |
+| `typeSecret(selector, secretField)` | `browser_type_secret` | `void` |
+| `waitFor({ selector, urlContains, timeoutSeconds = 30 })` | `browser_wait_for` | `{ matched, url }` |
+| `exists(selector)` | `browser_exists` | `{ exists, count }` |
+| `text(selector)` | `browser_text` | `string \| null` |
+| `extract(rowSelector, { name: { selector, attr?, all? } })` | `browser_extract` | rows |
+| `screenshot(label)` | `browser_screenshot` | PNG `Buffer` |
+| `handoffToHuman(reason, { untilSelector, untilUrlContains, timeoutSeconds = 300 })` | `browser_handoff_to_human` | `{ resolved, url }` |
+| `close()` | `browser_close_session` | `void` (idempotent) |
+
+Every browser call throws in direct-run mode (no kernel), and throws with the kernel's message when a tool fails.
+
+### `AgentFailure` (0.5.0)
+
+```typescript
+import { AgentFailure } from "@konstera/sdk";
+
+throw new AgentFailure("The site refused the sign-in; check the connection.", {
+  category: "action_needed",
+});
+
+// or a subclass with its own default
+class SignInRefused extends AgentFailure {
+  static override readonly defaultCategory = AgentFailure.ACTION_NEEDED;
+}
+```
+
+Uncategorised errors are recorded as `agent_bug`. Throw `AgentFailure` (or subclass it, or give your error a string `category` property) when the cause is outside your code: `dependency_failure` (the default; an outside system refused or failed), `action_needed` (a person must act first; not retried), `input_invalid`, `credential_missing`. The runtime returns it in the `/invoke` error body as `{"error": {"type", "message", "category"}}`, the same as the Python SDK.
 
 ### `run(agent, options?)`
 
