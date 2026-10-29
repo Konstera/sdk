@@ -7,12 +7,13 @@ import (
 
 func newBuildCmd() *cobra.Command {
 	var (
-		manifestPath string
-		contextDir   string
-		dockerfile   string
-		tag          string
-		push         bool
-		platform     string
+		manifestPath                          string
+		contextDir                            string
+		dockerfile                            string
+		tag                                   string
+		push                                  bool
+		platform                              string
+		allowDeprecatedConnectionRequirements bool
 	)
 	cmd := &cobra.Command{
 		Use:   "build",
@@ -37,14 +38,15 @@ Examples:
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return build.Run(build.Options{
-				ManifestPath: manifestPath,
-				Context:      contextDir,
-				Dockerfile:   dockerfile,
-				Tag:          tag,
-				Push:         push,
-				Platform:     platform,
-				Stdout:       cmd.OutOrStdout(),
-				Stderr:       cmd.ErrOrStderr(),
+				ManifestPath:                          manifestPath,
+				Context:                               contextDir,
+				Dockerfile:                            dockerfile,
+				Tag:                                   tag,
+				Push:                                  push,
+				Platform:                              platform,
+				AllowDeprecatedConnectionRequirements: allowDeprecatedConnectionRequirements,
+				Stdout:                                cmd.OutOrStdout(),
+				Stderr:                                cmd.ErrOrStderr(),
 			})
 		},
 	}
@@ -54,5 +56,9 @@ Examples:
 	cmd.Flags().StringVarP(&tag, "tag", "t", "", "Image tag (default: <id>:<version> from manifest)")
 	cmd.Flags().BoolVar(&push, "push", false, "Push to the registry after build (instead of --load into local Docker)")
 	cmd.Flags().StringVar(&platform, "platform", "", "Target platform(s), e.g. linux/amd64,linux/arm64")
+	cmd.Flags().BoolVar(&allowDeprecatedConnectionRequirements, "allow-deprecated-connection-requirements", false,
+		"Short-term escape hatch: let the build pass when the manifest still uses `connectionRequirements[]` (deprecated per ADR-013). "+
+			"Instance-id heuristics still fire under the opt-out. Packages built with this flag will be refused at upload time once the "+
+			"server-side gate ships. Prefer migrating to `capabilities.needs[]`.")
 	return cmd
 }
