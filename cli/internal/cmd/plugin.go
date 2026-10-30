@@ -9,9 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newPluginCmd exposes `konstera plugin ...` subcommands. Currently just
-// `install`; `list` + `uninstall` land in a follow-up slice when there's
-// a second plugin to manage.
+// newPluginCmd exposes `konstera plugin ...` subcommands. `uninstall` lands
+// in a follow-up slice when there's a second plugin to manage.
 func newPluginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plugin",
@@ -34,33 +33,55 @@ directory); the install command prints the exact invocation.`,
 	}
 	cmd.AddCommand(
 		newPluginInstallCmd(),
+		newPluginListCmd(),
 		newPluginActivateCmd(),
 		newPluginDeactivateCmd(),
 	)
 	return cmd
 }
 
+func newPluginListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List installed plugins with their version and activation state",
+		Long: `List the plugins installed under ~/.konstera/plugins/.
+
+Shows each plugin's slug, installed version, and whether its per-IDE link
+from 'konstera plugin activate' is in place. VERSION is "unknown" when the
+plugin doesn't record one. ACTIVATED is "yes", "no", or "n/a" for a slug
+with no activation handler.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return plugins.List(cmd.OutOrStdout())
+		},
+	}
+}
+
 func newPluginActivateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "activate <slug>",
-		Short: "Activate an installed plugin in its target IDE",
+		Short: "Link an installed plugin into its IDE (does not load it in Claude Code; see --help)",
 		// Keep Long free of inner backticks — Go has no escape for backticks
 		// in backtick-delimited raw strings. Use plain prose.
-		Long: `Activate an installed plugin in its target IDE.
+		Long: `Link an installed plugin into its target IDE's plugin directory.
 
 After 'konstera plugin install <slug>' extracts a plugin into
-~/.konstera/plugins/<slug>/, this subcommand creates the per-IDE link
-that makes the IDE auto-discover it on next launch — no --plugin-dir
-or similar manual flag needed.
+~/.konstera/plugins/<slug>/, this subcommand creates the per-IDE link.
 
 For claude-code: symlinks ~/.konstera/plugins/claude-code into
 ~/.claude/plugins/claude-code (or a directory junction on Windows if
 symlink privilege isn't held).
 
+Known limitation: this link does not currently load the plugin. Claude
+Code (tested on 2.1.314) ignores it. To load the plugin, start Claude
+Code with the command 'konstera plugin install' prints:
+
+  claude --plugin-dir "<path to ~/.konstera/plugins/claude-code>"
+
 Supported slugs: ` + strings.Join(plugins.SupportedActivateSlugs(), ", ") + `.
 
 Idempotent — a correct link already in place is reported as "already
-active" and succeeds without changes.`,
+linked" and succeeds without changes.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return plugins.Activate(cmd.OutOrStdout(), args[0])
