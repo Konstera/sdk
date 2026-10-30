@@ -340,12 +340,21 @@ func extractToDir(tarPath, dst, slug string) error {
 
 // -- paths + hints ------------------------------------------------------
 
-func targetPath(slug string) (string, error) {
+// pluginsDir is the directory holding every installed plugin.
+func pluginsDir() (string, error) {
 	home, err := login.KonsteraHome()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "plugins", slug), nil
+	return filepath.Join(home, "plugins"), nil
+}
+
+func targetPath(slug string) (string, error) {
+	dir, err := pluginsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, slug), nil
 }
 
 // readInstalledVersion reads the version field out of the plugin's
@@ -374,17 +383,24 @@ func readInstalledVersion(dir string) (string, bool) {
 }
 
 // nextStepHint prints the IDE-specific "what to do now" instruction.
-// For Claude Code the next step is `konstera plugin activate claude-code`
-// which symlinks the install into ~/.claude/plugins/. Other IDEs will add
-// their own case as plugins ship for them.
+// For Claude Code that is the --plugin-dir launch command: the link made by
+// `konstera plugin activate` does not load the plugin (see activate.go).
+// Other IDEs will add their own case as plugins ship for them.
 func nextStepHint(slug, installedPath string) string {
 	switch slug {
 	case "claude-code":
-		return "Next: run `konstera plugin activate claude-code`\n" +
-			"That symlinks the install into ~/.claude/plugins/claude-code so Claude Code\n" +
-			"auto-discovers it on next session start. Then /konstera-signin inside Claude Code."
+		return claudeCodeLoadSteps("Next: start Claude Code with the plugin loaded (the flag applies to that session only):", installedPath) +
+			"\n\nNote: `konstera plugin activate claude-code` does not currently load the plugin.\n" +
+			"Claude Code (tested on 2.1.314) ignores the link it creates in ~/.claude/plugins."
 	default:
 		return fmt.Sprintf("Installed at %s. See the plugin's README for activation instructions.", installedPath)
 	}
+}
+
+// claudeCodeLoadSteps renders the working way to load an installed plugin.
+// Double quotes are the one form cmd.exe, PowerShell and POSIX shells all
+// accept for a path with spaces.
+func claudeCodeLoadSteps(lead, installedPath string) string {
+	return fmt.Sprintf("%s\n\n  claude --plugin-dir \"%s\"\n\nThen run /konstera-signin inside Claude Code.", lead, installedPath)
 }
 

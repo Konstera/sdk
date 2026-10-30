@@ -2,20 +2,20 @@
 // to the IDE" step, run AFTER `konstera plugin install <slug>` has
 // extracted the plugin into ~/.konstera/plugins/<slug>/.
 //
-// For Claude Code: the IDE auto-discovers plugins by scanning
-// ~/.claude/plugins/*  (per the official docs,
-// https://code.claude.com/docs/en/plugins/loading.md ). Our activate
-// step is a symlink from the discovery dir to our install dir — Claude
-// Code picks the plugin up on next launch, no --plugin-dir flag.
+// For Claude Code: activate symlinks the install dir into ~/.claude/plugins/.
+// KNOWN LIMITATION: this does NOT load the plugin. A tester found Claude Code
+// 2.1.314 ignores the link; only `claude --plugin-dir <install dir>` or a
+// local marketplace loaded it. Install and activate therefore both point at
+// --plugin-dir. The command stays available until a working activation
+// replaces the link.
 //
 // For future IDEs with different discovery mechanisms, add a case in
 // the dispatch table at the bottom of this file.
 //
 // We prefer symlinks over copying so the install dir remains the single
 // source of truth: upgrades land in ~/.konstera/plugins/<slug>/ via
-// `konstera plugin install --force` and the symlinked discovery entry
-// resolves to the new content immediately. No "did I activate the new
-// version?" ambiguity.
+// `konstera plugin install --force` and the link resolves to the new
+// content immediately. No "did I activate the new version?" ambiguity.
 //
 // Windows caveat: os.Symlink requires either Developer Mode enabled or
 // Administrator rights. We fall back to directory junctions via `mklink
@@ -35,9 +35,10 @@ import (
 	"strings"
 )
 
-// Activate ensures the plugin at ~/.konstera/plugins/<slug> is visible
-// to the matching IDE. Idempotent: a correct symlink/junction already
-// in place → logged as "already active," success.
+// Activate links the plugin at ~/.konstera/plugins/<slug> into the matching
+// IDE's plugin directory. Idempotent: a correct symlink/junction already in
+// place → logged as already linked, success. Linking is not the same as
+// loading; see the limitation at the top of this file.
 func Activate(out io.Writer, slug string) error {
 	source, err := targetPath(slug)
 	if err != nil {
@@ -70,9 +71,9 @@ func Activate(out io.Writer, slug string) error {
 		if err := createLink(source, dest); err != nil {
 			return fmt.Errorf("linking %s → %s: %w", dest, source, err)
 		}
-		fmt.Fprintf(out, "✓ Activated %s for %s.\n", slug, hint.ide)
+		fmt.Fprintf(out, "✓ Linked %s for %s at %s.\n", slug, hint.ide, dest)
 	case stateLinkToUs:
-		fmt.Fprintf(out, "✓ %s is already active for %s.\n", slug, hint.ide)
+		fmt.Fprintf(out, "✓ %s is already linked for %s at %s.\n", slug, hint.ide, dest)
 	case stateLinkElsewhere:
 		return fmt.Errorf(
 			"%s already has a link at %s pointing at %s. Run `konstera plugin deactivate %s` to remove it, then re-run activate",
@@ -173,12 +174,10 @@ func inspect(path string) linkState {
 		}
 		return linkState{kind: stateLinkElsewhere, target: target}
 	}
-	// On Windows, directory junctions aren't flagged ModeSymlink; they
-	// show up as ModeDir with the reparse-point attribute. Treat any
-	// dir at the discovery path as "unknown link to somewhere" and let
-	// the user decide — Readlink works on junctions in Go 1.23+ so we
-	// can resolve the target.
-	if runtime.GOOS == "windows" && fi.IsDir() {
+	// On Windows, directory junctions aren't flagged ModeSymlink; since
+	// Go 1.23 Lstat reports them as ModeIrregular rather than ModeDir.
+	// Readlink resolves their target.
+	if runtime.GOOS == "windows" && (fi.IsDir() || fi.Mode()&os.ModeIrregular != 0) {
 		if target, err := os.Readlink(path); err == nil && target != "" {
 			if filepath.Clean(target) == filepath.Clean(source) {
 				return linkState{kind: stateLinkToUs, target: target}
@@ -238,9 +237,8 @@ type discoveryHint struct {
 	restartNote string
 }
 
-// discoveryPath returns where a given plugin slug should be linked into
-// to be auto-discovered by its target IDE, plus a human description +
-// post-activate hint.
+// discoveryPath returns where a given plugin slug is linked into for its
+// target IDE, plus a human description + post-activate hint.
 func discoveryPath(slug string) (string, discoveryHint, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -249,15 +247,20 @@ func discoveryPath(slug string) (string, discoveryHint, error) {
 
 	switch slug {
 	case "claude-code":
-		// Claude Code reads ~/.claude/plugins/ on every OS. On Windows,
-		// $USERPROFILE\.claude\plugins\ matches that convention — the
-		// APPDATA path reported by some older docs is for other Claude
-		// surfaces (Desktop app settings), not Claude Code's plugin
-		// discovery. Verified against the official plugin loading docs.
+		// The link lands in ~/.claude/plugins/ on every OS. Claude Code does
+		// not load it (see the limitation at the top of this file), so the
+		// post-activate note gives the command that does.
 		path := filepath.Join(home, ".claude", "plugins", slug)
+		source, err := targetPath(slug)
+		if err != nil {
+			return "", discoveryHint{}, err
+		}
 		return path, discoveryHint{
 			ide: "Claude Code",
-			restartNote: "Start a new Claude Code session (or run /reload-plugins in an active one) to pick up the plugin. Then /konstera-signin.",
+			restartNote: claudeCodeLoadSteps(
+				"Note: this link does not currently load the plugin; Claude Code (tested on 2.1.314) ignores it.\n"+
+					"To load the plugin, start Claude Code with (the flag applies to that session only):",
+				source),
 		}, nil
 	default:
 		return "", discoveryHint{}, fmt.Errorf(
