@@ -2,11 +2,11 @@ package plugins
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -39,19 +39,34 @@ func fakeInstall(t *testing.T, home, slug, manifest string) string {
 	return dir
 }
 
-func TestNextStepHint_ClaudeCodePrintsQuotedPluginDirCommand(t *testing.T) {
-	path := `C:\Users\Jane Doe\.konstera\plugins\claude-code`
-	hint := nextStepHint("claude-code", path)
+// fakeClaude replaces the claude command and records every call. list is
+// what `claude plugin list --json` answers.
+func fakeClaude(t *testing.T, list string) *[][]string {
+	t.Helper()
+	calls := &[][]string{}
+	original := runClaude
+	runClaude = func(args ...string) (string, error) {
+		*calls = append(*calls, args)
+		if len(args) > 1 && args[1] == "list" {
+			return list, nil
+		}
+		return "", nil
+	}
+	t.Cleanup(func() { runClaude = original })
+	return calls
+}
 
-	want := `claude --plugin-dir "C:\Users\Jane Doe\.konstera\plugins\claude-code"`
-	if !strings.Contains(hint, want) {
-		t.Errorf("hint missing %q:\n%s", want, hint)
+const claudeListsKonstera = `[{"id":"konstera@konstera","enabled":true}]`
+
+func TestNextStepHint_ClaudeCodePointsAtActivate(t *testing.T) {
+	hint := nextStepHint("claude-code", `C:\Users\Jane Doe\.konstera\plugins\claude-code`)
+	for _, want := range []string{"konstera plugin activate claude-code", "/konstera-signin"} {
+		if !strings.Contains(hint, want) {
+			t.Errorf("hint missing %q:\n%s", want, hint)
+		}
 	}
-	if !strings.Contains(hint, "does not currently load") {
-		t.Errorf("hint must say activate does not load the plugin:\n%s", hint)
-	}
-	if strings.Contains(hint, "Next: run `konstera plugin activate") {
-		t.Errorf("hint must not send users to activate:\n%s", hint)
+	if strings.Contains(hint, "--plugin-dir") {
+		t.Errorf("no user should need --plugin-dir:\n%s", hint)
 	}
 }
 
@@ -65,30 +80,128 @@ func TestNextStepHint_OtherSlugsPointAtTheirReadme(t *testing.T) {
 	}
 }
 
-func TestActivate_OutputSaysLinkDoesNotLoadAndGivesCommand(t *testing.T) {
+func TestActivate_InstallsThroughClaudeCode(t *testing.T) {
 	home := setHome(t)
-	dir := fakeInstall(t, home, "claude-code", `{"version":"1.2.3"}`)
+	dir := fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	calls := fakeClaude(t, "[]")
 
 	var out bytes.Buffer
-	if err := Activate(&out, "claude-code"); err != nil {
+	if err := Activate(&out, "claude-code", "https://api.konstera.test"); err != nil {
+		t.Fatalf("Activate: %v", err)
+	}
+
+	root := filepath.Dir(dir)
+	want := [][]string{
+		{"plugin", "marketplace", "add", root},
+		{"plugin", "install", "konstera@konstera", "--config", "base_url=https://api.konstera.test"},
+	}
+	if !reflect.DeepEqual(*calls, want) {
+		t.Errorf("claude calls:\n got %v\nwant %v", *calls, want)
+	}
+	body, err := os.ReadFile(filepath.Join(root, ".claude-plugin", "marketplace.json"))
+	if err != nil {
+		t.Fatalf("marketplace.json: %v", err)
+	}
+	var marketplace struct {
+		Name    string
+		Plugins []struct{ Name, Source string }
+	}
+	if err := json.Unmarshal(body, &marketplace); err != nil {
+		t.Fatalf("marketplace.json: %v", err)
+	}
+	if marketplace.Name != "konstera" || marketplace.Plugins[0].Name != "konstera" ||
+		marketplace.Plugins[0].Source != "./claude-code" {
+		t.Errorf("marketplace.json = %+v", marketplace)
+	}
+	if !strings.Contains(out.String(), "/konstera-signin") || strings.Contains(out.String(), "--plugin-dir") {
+		t.Errorf("output: %s", out.String())
+	}
+}
+
+func TestActivate_FailsWhenClaudeCodeFails(t *testing.T) {
+	home := setHome(t)
+	fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	original := runClaude
+	runClaude = func(args ...string) (string, error) {
+		return "marketplace refused", errors.New("exit status 1")
+	}
+	t.Cleanup(func() { runClaude = original })
+
+	var out bytes.Buffer
+	err := Activate(&out, "claude-code", "https://api.konstera.test")
+
+	if err == nil || !strings.Contains(err.Error(), "marketplace refused") {
+		t.Fatalf("Activate must report the refusal, got %v", err)
+	}
+	if strings.Contains(out.String(), "✓") {
+		t.Errorf("no success line on failure: %s", out.String())
+	}
+}
+
+func TestActivate_ExplainsMissingClaudeCode(t *testing.T) {
+	home := setHome(t)
+	dir := fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	original := runClaude
+	runClaude = func(args ...string) (string, error) { return "", errClaudeNotFound }
+	t.Cleanup(func() { runClaude = original })
+
+	err := Activate(&bytes.Buffer{}, "claude-code", "https://api.konstera.test")
+
+	if err == nil || !strings.Contains(err.Error(), "Install Claude Code") || !strings.Contains(err.Error(), dir) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestActivate_NotInstalled(t *testing.T) {
+	setHome(t)
+	calls := fakeClaude(t, "[]")
+
+	err := Activate(&bytes.Buffer{}, "claude-code", "https://api.konstera.test")
+
+	if err == nil || !strings.Contains(err.Error(), "konstera plugin install") {
+		t.Fatalf("got %v", err)
+	}
+	if len(*calls) != 0 {
+		t.Errorf("claude must not run: %v", *calls)
+	}
+}
+
+// The link older CLIs left behind is gone after activate; a directory that
+// is not ours stays.
+func TestActivate_RemovesOnlyOurLegacyLink(t *testing.T) {
+	home := setHome(t)
+	dir := fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	fakeClaude(t, "[]")
+	plugins := filepath.Join(home, ".claude", "plugins")
+	if err := os.MkdirAll(plugins, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got := out.String()
-	for _, want := range []string{
-		"does not currently load",
-		`claude --plugin-dir "` + dir + `"`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("output missing %q:\n%s", want, got)
-		}
+	link := filepath.Join(plugins, "claude-code")
+	if err := os.Symlink(dir, link); err != nil {
+		t.Skipf("symlink not available: %v", err)
 	}
-	if strings.Contains(got, "Activated claude-code") || strings.Contains(got, "pick up the plugin") {
-		t.Errorf("output still promises the plugin loads:\n%s", got)
+
+	if err := Activate(&bytes.Buffer{}, "claude-code", "https://api.konstera.test"); err != nil {
+		t.Fatalf("Activate: %v", err)
+	}
+	if _, err := os.Lstat(link); !os.IsNotExist(err) {
+		t.Errorf("legacy link still present: %v", err)
+	}
+
+	if err := os.Mkdir(link, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Activate(&bytes.Buffer{}, "claude-code", "https://api.konstera.test"); err != nil {
+		t.Fatalf("Activate: %v", err)
+	}
+	if _, err := os.Stat(link); err != nil {
+		t.Errorf("foreign directory removed: %v", err)
 	}
 }
 
 func TestInstalled_ReadsVersionsAndSkipsNonPlugins(t *testing.T) {
 	home := setHome(t)
+	fakeClaude(t, "[]")
 	fakeInstall(t, home, "claude-code", `{"name":"konstera","version":"1.2.3"}`)
 	fakeInstall(t, home, "no-manifest", "")
 	fakeInstall(t, home, "bad-json", `{not json`)
@@ -116,78 +229,66 @@ func TestInstalled_ReadsVersionsAndSkipsNonPlugins(t *testing.T) {
 	}
 }
 
-func TestInstalled_ForeignDirAtLinkPathIsNotActivated(t *testing.T) {
+func TestList_ReportsWhatClaudeCodeSays(t *testing.T) {
 	home := setHome(t)
-	fakeInstall(t, home, "claude-code", `{"version":"1.2.3"}`)
-	dest, _, err := discoveryPath("claude-code")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(dest, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := Installed()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 || got[0].Activated != "no" {
-		t.Errorf("got %+v", got)
-	}
-}
-
-func TestList_ActivatedAfterActivate(t *testing.T) {
-	home := setHome(t)
-	dir := fakeInstall(t, home, "claude-code", `{"version":"1.2.3"}`)
-	if err := Activate(&bytes.Buffer{}, "claude-code"); err != nil {
-		t.Fatal(err)
-	}
+	fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	fakeClaude(t, claudeListsKonstera)
 
 	var out bytes.Buffer
 	if err := List(&out); err != nil {
-		t.Fatal(err)
+		t.Fatalf("List: %v", err)
 	}
-	fields := strings.Fields(strings.Split(out.String(), "\n")[1])
-	if want := []string{"claude-code", "1.2.3", "yes"}; !reflect.DeepEqual(fields, want) {
-		t.Errorf("row = %v, want %v\n%s", fields, want, out.String())
-	}
-	for _, want := range []string{"does not load claude-code", `claude --plugin-dir "` + dir + `"`} {
-		if !strings.Contains(out.String(), want) {
-			t.Errorf("list must not imply activated means loaded; missing %q:\n%s", want, out.String())
-		}
+	if !strings.Contains(out.String(), "yes") || strings.Contains(out.String(), "plugin activate") {
+		t.Errorf("list:\n%s", out.String())
 	}
 }
 
-// A junction is what activate creates on Windows without symlink privilege.
-// Go 1.23 reports it as ModeIrregular, which inspect must still recognise.
-func TestJunctionCountsAsActivatedAndDeactivates(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("junctions are Windows-only")
-	}
+func TestList_OffersActivateWhenClaudeCodeLacksThePlugin(t *testing.T) {
 	home := setHome(t)
-	dir := fakeInstall(t, home, "claude-code", `{"version":"1.2.3"}`)
-	dest, _, err := discoveryPath("claude-code")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if out, err := exec.Command("cmd", "/C", "mklink", "/J", dest, dir).CombinedOutput(); err != nil {
-		t.Fatalf("mklink /J: %v: %s", err, out)
-	}
+	fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	fakeClaude(t, `[{"id":"konstera@konstera","enabled":false}]`)
 
-	if got := activationState("claude-code"); got != "yes" {
-		t.Errorf("activationState = %q, want yes", got)
+	var out bytes.Buffer
+	if err := List(&out); err != nil {
+		t.Fatalf("List: %v", err)
 	}
+	if !strings.Contains(out.String(), "konstera plugin activate claude-code") {
+		t.Errorf("list:\n%s", out.String())
+	}
+}
+
+func TestDeactivate_RemovesFromClaudeCodeAndKeepsInstall(t *testing.T) {
+	home := setHome(t)
+	dir := fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	calls := fakeClaude(t, claudeListsKonstera)
+
 	if err := Deactivate(&bytes.Buffer{}, "claude-code"); err != nil {
 		t.Fatalf("Deactivate: %v", err)
 	}
-	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
-		t.Errorf("junction still present after deactivate: %v", err)
+
+	want := [][]string{
+		{"plugin", "list", "--json"},
+		{"plugin", "uninstall", "konstera@konstera"},
+		{"plugin", "marketplace", "remove", "konstera"},
+	}
+	if !reflect.DeepEqual(*calls, want) {
+		t.Errorf("claude calls:\n got %v\nwant %v", *calls, want)
 	}
 	if _, err := os.Stat(dir); err != nil {
 		t.Errorf("install must survive deactivate: %v", err)
+	}
+}
+
+func TestDeactivate_NothingActiveIsFine(t *testing.T) {
+	home := setHome(t)
+	fakeInstall(t, home, "claude-code", `{"version":"0.2.0"}`)
+	calls := fakeClaude(t, "[]")
+
+	if err := Deactivate(&bytes.Buffer{}, "claude-code"); err != nil {
+		t.Fatalf("Deactivate: %v", err)
+	}
+	if len(*calls) != 1 {
+		t.Errorf("only the list call expected: %v", *calls)
 	}
 }
 

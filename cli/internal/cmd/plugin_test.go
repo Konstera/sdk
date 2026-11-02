@@ -34,14 +34,14 @@ func TestPluginList_RunsAgainstEmptyHome(t *testing.T) {
 	}
 }
 
-func TestPluginActivateHelp_StatesLimitation(t *testing.T) {
+func TestPluginActivateHelp_DescribesTheMarketplaceInstall(t *testing.T) {
 	long := newPluginActivateCmd().Long
-	for _, want := range []string{"does not currently load", "claude --plugin-dir"} {
+	for _, want := range []string{"local Claude Code", "Claude Code must be installed first"} {
 		if !strings.Contains(long, want) {
 			t.Errorf("activate help missing %q:\n%s", want, long)
 		}
 	}
-	if strings.Contains(long, "auto-discover") {
-		t.Errorf("activate help still promises auto-discovery:\n%s", long)
+	if strings.Contains(long, "--plugin-dir") {
+		t.Errorf("no user should need --plugin-dir:\n%s", long)
 	}
 }
