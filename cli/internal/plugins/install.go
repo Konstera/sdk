@@ -383,24 +383,14 @@ func readInstalledVersion(dir string) (string, bool) {
 }
 
 // nextStepHint prints the IDE-specific "what to do now" instruction.
-// For Claude Code that is the --plugin-dir launch command: the link made by
-// `konstera plugin activate` does not load the plugin (see activate.go).
 // Other IDEs will add their own case as plugins ship for them.
 func nextStepHint(slug, installedPath string) string {
 	switch slug {
-	case "claude-code":
-		return claudeCodeLoadSteps("Next: start Claude Code with the plugin loaded (the flag applies to that session only):", installedPath) +
-			"\n\nNote: `konstera plugin activate claude-code` does not currently load the plugin.\n" +
-			"Claude Code (tested on 2.1.314) ignores the link it creates in ~/.claude/plugins."
+	case claudeCodeSlug:
+		return "Next: add it to Claude Code (needed once; later upgrades reach the next session by themselves):\n\n" +
+			"  konstera plugin activate claude-code\n\n" +
+			"Then open a new Claude Code session and run /konstera-signin."
 	default:
 		return fmt.Sprintf("Installed at %s. See the plugin's README for activation instructions.", installedPath)
 	}
 }
-
-// claudeCodeLoadSteps renders the working way to load an installed plugin.
-// Double quotes are the one form cmd.exe, PowerShell and POSIX shells all
-// accept for a path with spaces.
-func claudeCodeLoadSteps(lead, installedPath string) string {
-	return fmt.Sprintf("%s\n\n  claude --plugin-dir \"%s\"\n\nThen run /konstera-signin inside Claude Code.", lead, installedPath)
-}
-

@@ -2,44 +2,55 @@
 // to the IDE" step, run AFTER `konstera plugin install <slug>` has
 // extracted the plugin into ~/.konstera/plugins/<slug>/.
 //
-// For Claude Code: activate symlinks the install dir into ~/.claude/plugins/.
-// KNOWN LIMITATION: this does NOT load the plugin. A tester found Claude Code
-// 2.1.314 ignores the link; only `claude --plugin-dir <install dir>` or a
-// local marketplace loaded it. Install and activate therefore both point at
-// --plugin-dir. The command stays available until a working activation
-// replaces the link.
+// For Claude Code: ~/.konstera/plugins becomes a local marketplace and
+// `claude plugin install` adds the plugin from it. Claude Code loads a
+// local marketplace's plugin in place, so `konstera plugin install --force`
+// reaches the next session with nothing else to run. Going through Claude
+// Code's own commands also means a failure here is a real failure: the old
+// link into ~/.claude/plugins reported success and loaded nothing.
 //
 // For future IDEs with different discovery mechanisms, add a case in
-// the dispatch table at the bottom of this file.
-//
-// We prefer symlinks over copying so the install dir remains the single
-// source of truth: upgrades land in ~/.konstera/plugins/<slug>/ via
-// `konstera plugin install --force` and the link resolves to the new
-// content immediately. No "did I activate the new version?" ambiguity.
-//
-// Windows caveat: os.Symlink requires either Developer Mode enabled or
-// Administrator rights. We fall back to directory junctions via `mklink
-// /J` which require neither; junctions resolve dir-only paths and are
-// scoped to the same drive, both fine for Konstera's layout.
+// Activate, Deactivate and activationState.
 
 package plugins
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
-// Activate links the plugin at ~/.konstera/plugins/<slug> into the matching
-// IDE's plugin directory. Idempotent: a correct symlink/junction already in
-// place → logged as already linked, success. Linking is not the same as
-// loading; see the limitation at the top of this file.
-func Activate(out io.Writer, slug string) error {
+const (
+	claudeCodeSlug    = "claude-code"
+	claudeMarketplace = "konstera"
+	claudePluginName  = "konstera"
+	claudePluginID    = claudePluginName + "@" + claudeMarketplace
+)
+
+var errClaudeNotFound = errors.New("the claude command is not on PATH")
+
+// runClaude runs the Claude Code CLI and returns its combined output.
+// Tests replace it.
+var runClaude = func(args ...string) (string, error) {
+	path, err := exec.LookPath("claude")
+	if err != nil {
+		return "", errClaudeNotFound
+	}
+	out, err := exec.Command(path, args...).CombinedOutput()
+	return string(out), err
+}
+
+// Activate adds the plugin at ~/.konstera/plugins/<slug> to its IDE.
+// Idempotent. apiBaseURL becomes the plugin's API URL.
+func Activate(out io.Writer, slug, apiBaseURL string) error {
+	if slug != claudeCodeSlug {
+		return unsupportedSlug("activate", slug)
+	}
 	source, err := targetPath(slug)
 	if err != nil {
 		return err
@@ -51,221 +62,136 @@ func Activate(out io.Writer, slug string) error {
 		return fmt.Errorf("checking plugin install: %w", err)
 	}
 
-	dest, hint, err := discoveryPath(slug)
-	if err != nil {
+	root := filepath.Dir(source)
+	if err := writeMarketplace(root, slug); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return fmt.Errorf("creating %s: %w", filepath.Dir(dest), err)
-	}
-
-	// Inspect the current state at the discovery path. Four cases:
-	//   (a) nothing there → create the link
-	//   (b) a symlink/junction already pointing at source → nothing to do
-	//   (c) a symlink/junction pointing elsewhere → refuse; user must
-	//       `konstera plugin deactivate <slug>` first
-	//   (d) a plain directory → refuse; user manually copied something
-	//       there and we won't clobber their state
-	switch state := inspect(dest); state.kind {
-	case stateMissing:
-		if err := createLink(source, dest); err != nil {
-			return fmt.Errorf("linking %s → %s: %w", dest, source, err)
+	for _, args := range [][]string{
+		{"plugin", "marketplace", "add", root},
+		{"plugin", "install", claudePluginID, "--config", "base_url=" + apiBaseURL},
+	} {
+		if err := claudeStep(args, source); err != nil {
+			return err
 		}
-		fmt.Fprintf(out, "✓ Linked %s for %s at %s.\n", slug, hint.ide, dest)
-	case stateLinkToUs:
-		fmt.Fprintf(out, "✓ %s is already linked for %s at %s.\n", slug, hint.ide, dest)
-	case stateLinkElsewhere:
-		return fmt.Errorf(
-			"%s already has a link at %s pointing at %s. Run `konstera plugin deactivate %s` to remove it, then re-run activate",
-			hint.ide, dest, state.target, slug)
-	case stateDir, stateFile:
-		return fmt.Errorf(
-			"%s already has %s at %s. Remove it (manual) and re-run activate; we don't clobber existing content",
-			hint.ide, state.kind.describe(), dest)
+	}
+	if err := removeLegacyLink(source); err != nil {
+		return err
 	}
 
-	if hint.restartNote != "" {
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, hint.restartNote)
-	}
+	fmt.Fprintln(out, "✓ Added the Konstera plugin to Claude Code.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Open a new Claude Code session (restart it if it is running), then run /konstera-signin.")
 	return nil
 }
 
-// Deactivate removes the discovery-dir link we created, leaving the
-// installed plugin in place at ~/.konstera/plugins/<slug>. Idempotent.
+// Deactivate removes the plugin from its IDE, leaving the install at
+// ~/.konstera/plugins/<slug>. Idempotent.
 func Deactivate(out io.Writer, slug string) error {
+	if slug != claudeCodeSlug {
+		return unsupportedSlug("deactivate", slug)
+	}
 	source, err := targetPath(slug)
 	if err != nil {
 		return err
 	}
-	dest, hint, err := discoveryPath(slug)
-	if err != nil {
+	if err := removeLegacyLink(source); err != nil {
 		return err
 	}
-
-	switch state := inspect(dest); state.kind {
-	case stateMissing:
-		fmt.Fprintf(out, "%s is not active for %s (nothing at %s).\n", slug, hint.ide, dest)
+	if !claudePluginEnabled() {
+		fmt.Fprintf(out, "%s is not active for Claude Code.\n", slug)
 		return nil
-	case stateLinkToUs:
-		if err := os.Remove(dest); err != nil {
-			return fmt.Errorf("removing %s: %w", dest, err)
+	}
+	for _, args := range [][]string{
+		{"plugin", "uninstall", claudePluginID},
+		{"plugin", "marketplace", "remove", claudeMarketplace},
+	} {
+		if err := claudeStep(args, source); err != nil {
+			return err
 		}
-		fmt.Fprintf(out, "✓ Deactivated %s for %s.\n", slug, hint.ide)
-	case stateLinkElsewhere:
+	}
+	fmt.Fprintf(out, "✓ Deactivated %s for Claude Code.\n", slug)
+	return nil
+}
+
+func claudeStep(args []string, source string) error {
+	output, err := runClaude(args...)
+	if errors.Is(err, errClaudeNotFound) {
 		return fmt.Errorf(
-			"%s at %s links to %s, not to our install at %s. Deactivate refuses to remove something we didn't create — remove it manually",
-			hint.ide, dest, state.target, source)
-	case stateDir, stateFile:
-		return fmt.Errorf(
-			"%s at %s is %s, not one of our links. Deactivate refuses to clobber it; remove it manually if you intend to",
-			hint.ide, dest, state.kind.describe())
+			"Claude Code's claude command was not found on PATH. The plugin is at %s. Install Claude Code, then run `konstera plugin activate %s`",
+			source, claudeCodeSlug)
+	}
+	if err != nil {
+		return fmt.Errorf("claude %s failed: %w\n%s", strings.Join(args, " "), err, strings.TrimSpace(output))
 	}
 	return nil
 }
 
-// -- link-state inspection ---------------------------------------------
-
-type linkStateKind int
-
-const (
-	stateMissing linkStateKind = iota
-	stateLinkToUs
-	stateLinkElsewhere
-	stateDir
-	stateFile
-)
-
-func (k linkStateKind) describe() string {
-	switch k {
-	case stateDir:
-		return "a plain directory"
-	case stateFile:
-		return "a regular file"
-	case stateLinkElsewhere:
-		return "a symlink"
-	case stateLinkToUs:
-		return "our symlink"
-	default:
-		return "nothing"
-	}
-}
-
-type linkState struct {
-	kind   linkStateKind
-	target string
-}
-
-func inspect(path string) linkState {
-	// Lstat does NOT follow symlinks — critical here because we need to
-	// know "is this a link" before deciding "where does it point."
-	fi, err := os.Lstat(path)
+func writeMarketplace(root, slug string) error {
+	body, err := json.MarshalIndent(map[string]any{
+		"name":  claudeMarketplace,
+		"owner": map[string]string{"name": "Konstera"},
+		"plugins": []map[string]string{{
+			"name":        claudePluginName,
+			"source":      "./" + slug,
+			"description": "Konstera for Claude Code, installed by the Konstera CLI",
+		}},
+	}, "", "  ")
 	if err != nil {
-		return linkState{kind: stateMissing}
-	}
-	source := ourSourceFor(path)
-	if fi.Mode()&os.ModeSymlink != 0 {
-		target, err := os.Readlink(path)
-		if err != nil {
-			return linkState{kind: stateLinkElsewhere, target: "<unreadable>"}
-		}
-		if filepath.Clean(target) == filepath.Clean(source) {
-			return linkState{kind: stateLinkToUs, target: target}
-		}
-		return linkState{kind: stateLinkElsewhere, target: target}
-	}
-	// On Windows, directory junctions aren't flagged ModeSymlink; since
-	// Go 1.23 Lstat reports them as ModeIrregular rather than ModeDir.
-	// Readlink resolves their target.
-	if runtime.GOOS == "windows" && (fi.IsDir() || fi.Mode()&os.ModeIrregular != 0) {
-		if target, err := os.Readlink(path); err == nil && target != "" {
-			if filepath.Clean(target) == filepath.Clean(source) {
-				return linkState{kind: stateLinkToUs, target: target}
-			}
-			return linkState{kind: stateLinkElsewhere, target: target}
-		}
-	}
-	if fi.IsDir() {
-		return linkState{kind: stateDir}
-	}
-	return linkState{kind: stateFile}
-}
-
-// ourSourceFor returns what the install path for a plugin at this
-// discovery path should be — used by inspect to decide "is this link
-// ours or someone else's".
-func ourSourceFor(discoveryPath string) string {
-	slug := filepath.Base(discoveryPath)
-	source, err := targetPath(slug)
-	if err != nil {
-		return ""
-	}
-	return source
-}
-
-// -- link creation (symlink + Windows junction fallback) ----------------
-
-func createLink(source, dest string) error {
-	// Try symlink first on every OS. Fast path on macOS/Linux and on
-	// Windows machines with Developer Mode or admin.
-	err := os.Symlink(source, dest)
-	if err == nil {
-		return nil
-	}
-	if runtime.GOOS != "windows" {
 		return err
 	}
-	// Windows symlink failed — most likely "A required privilege is not
-	// held by the client" (ERROR_PRIVILEGE_NOT_HELD, 1314). Fall back to
-	// a directory junction via mklink /J which doesn't require admin.
-	// mklink is a cmd.exe builtin, not a .exe, so it has to run via cmd.
-	msg := err.Error()
-	if strings.Contains(msg, "privilege") || strings.Contains(msg, "1314") {
-		cmd := exec.Command("cmd", "/C", "mklink", "/J", dest, source)
-		if out, err2 := cmd.CombinedOutput(); err2 != nil {
-			return fmt.Errorf("symlink refused and mklink /J fallback failed: %s", strings.TrimSpace(string(out)))
-		}
-		return nil
+	dir := filepath.Join(root, ".claude-plugin")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("creating %s: %w", dir, err)
 	}
-	return err
+	path := filepath.Join(dir, "marketplace.json")
+	if err := os.WriteFile(path, append(body, '\n'), 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	return nil
 }
 
-// -- per-IDE discovery path dispatch -----------------------------------
-
-type discoveryHint struct {
-	ide         string
-	restartNote string
-}
-
-// discoveryPath returns where a given plugin slug is linked into for its
-// target IDE, plus a human description + post-activate hint.
-func discoveryPath(slug string) (string, discoveryHint, error) {
+// removeLegacyLink clears the ~/.claude/plugins/<slug> link older CLIs
+// created. Anything that does not point at our install is left alone.
+func removeLegacyLink(source string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", discoveryHint{}, fmt.Errorf("resolving user home: %w", err)
+		return fmt.Errorf("resolving user home: %w", err)
 	}
+	link := filepath.Join(home, ".claude", "plugins", filepath.Base(source))
+	target, err := os.Readlink(link)
+	if err != nil || filepath.Clean(target) != filepath.Clean(source) {
+		return nil
+	}
+	if err := os.Remove(link); err != nil {
+		return fmt.Errorf("removing %s: %w", link, err)
+	}
+	return nil
+}
 
-	switch slug {
-	case "claude-code":
-		// The link lands in ~/.claude/plugins/ on every OS. Claude Code does
-		// not load it (see the limitation at the top of this file), so the
-		// post-activate note gives the command that does.
-		path := filepath.Join(home, ".claude", "plugins", slug)
-		source, err := targetPath(slug)
-		if err != nil {
-			return "", discoveryHint{}, err
-		}
-		return path, discoveryHint{
-			ide: "Claude Code",
-			restartNote: claudeCodeLoadSteps(
-				"Note: this link does not currently load the plugin; Claude Code (tested on 2.1.314) ignores it.\n"+
-					"To load the plugin, start Claude Code with (the flag applies to that session only):",
-				source),
-		}, nil
-	default:
-		return "", discoveryHint{}, fmt.Errorf(
-			"konstera plugin activate: no activation handler for slug %q. Supported slugs: claude-code", slug)
+// claudePluginEnabled asks Claude Code rather than inferring from files.
+func claudePluginEnabled() bool {
+	output, err := runClaude("plugin", "list", "--json")
+	if err != nil {
+		return false
 	}
+	var listed []struct {
+		ID      string `json:"id"`
+		Enabled bool   `json:"enabled"`
+	}
+	if err := json.Unmarshal([]byte(output), &listed); err != nil {
+		return false
+	}
+	for _, plugin := range listed {
+		if plugin.ID == claudePluginID {
+			return plugin.Enabled
+		}
+	}
+	return false
+}
+
+func unsupportedSlug(verb, slug string) error {
+	return fmt.Errorf("konstera plugin %s: no activation handler for slug %q. Supported slugs: %s",
+		verb, slug, strings.Join(SupportedActivateSlugs(), ", "))
 }
 
 // -- used by cmd/plugin.go to list supported activation targets --------
@@ -274,5 +200,5 @@ func discoveryPath(slug string) (string, discoveryHint, error) {
 // activate. Kept here so the command help can enumerate them without
 // pulling in cmd/.
 func SupportedActivateSlugs() []string {
-	return []string{"claude-code"}
+	return []string{claudeCodeSlug}
 }

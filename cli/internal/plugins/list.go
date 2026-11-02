@@ -67,11 +67,10 @@ func isTransientDir(name string) bool {
 }
 
 func activationState(slug string) string {
-	dest, _, err := discoveryPath(slug)
-	if err != nil {
+	if slug != claudeCodeSlug {
 		return activatedNA
 	}
-	if inspect(dest).kind == stateLinkToUs {
+	if claudePluginEnabled() {
 		return activatedYes
 	}
 	return activatedNo
@@ -98,16 +97,9 @@ func List(out io.Writer) error {
 	}
 
 	for _, p := range installed {
-		if p.Slug != "claude-code" {
-			continue
+		if p.Activated == activatedNo {
+			fmt.Fprintf(out, "\nRun `konstera plugin activate %s` to add it to its IDE.\n", p.Slug)
 		}
-		path, err := targetPath(p.Slug)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, claudeCodeLoadSteps(
-			"ACTIVATED only means the link exists; it does not load claude-code. To load it:", path))
 	}
 	return nil
 }
