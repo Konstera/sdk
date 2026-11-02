@@ -41,8 +41,22 @@ var runClaude = func(args ...string) (string, error) {
 	if err != nil {
 		return "", errClaudeNotFound
 	}
-	out, err := exec.Command(path, args...).CombinedOutput()
+	out, err := claudeCommand(path, args).CombinedOutput()
 	return string(out), err
+}
+
+// batchCmdLine is the command line that runs a .cmd or .bat file through
+// cmd.exe with every argument intact. Run directly, cmd.exe drops the outer
+// quotes when both the file's path and an argument are quoted, so npm's
+// claude.cmd under "C:\Users\First Last" failed with "'C:\Users\First' is
+// not recognized". /s makes cmd.exe strip only the outer pair added here,
+// and /d skips AutoRun commands.
+func batchCmdLine(comspec, script string, args []string) string {
+	quoted := make([]string, 0, len(args)+1)
+	for _, a := range append([]string{script}, args...) {
+		quoted = append(quoted, `"`+strings.ReplaceAll(a, `"`, `""`)+`"`)
+	}
+	return `"` + comspec + `" /d /s /c "` + strings.Join(quoted, " ") + `"`
 }
 
 // Activate adds the plugin at ~/.konstera/plugins/<slug> to its IDE.
