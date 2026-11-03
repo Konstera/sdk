@@ -21,10 +21,11 @@ func useDesktopConfig(t *testing.T, initial string) string {
 			t.Fatal(err)
 		}
 	}
-	oldPath, oldExe := ClaudeDesktopConfigPath, executable
+	oldPath, oldExe, oldRunning := ClaudeDesktopConfigPath, executable, claudeDesktopRunning
 	ClaudeDesktopConfigPath = func() (string, error) { return path, nil }
 	executable = func() (string, error) { return `C:\Tools\konstera.exe`, nil }
-	t.Cleanup(func() { ClaudeDesktopConfigPath, executable = oldPath, oldExe })
+	claudeDesktopRunning = func() (bool, error) { return false, nil }
+	t.Cleanup(func() { ClaudeDesktopConfigPath, executable, claudeDesktopRunning = oldPath, oldExe, oldRunning })
 	return path
 }
 
@@ -73,7 +74,7 @@ func TestActivateClaudeDesktopKeepsOtherSettings(t *testing.T) {
 	if !strings.Contains(string(raw), "12345678901234567890") || cfg["preferences"].(map[string]any)["coworkWebSearchEnabled"] != true {
 		t.Errorf("preferences changed:\n%s", raw)
 	}
-	if !strings.Contains(out.String(), "Quit Claude Desktop") {
+	if !strings.Contains(out.String(), "Open Claude Desktop") {
 		t.Errorf("output = %q", out.String())
 	}
 

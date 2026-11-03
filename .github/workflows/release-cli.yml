@@ -8,6 +8,10 @@ name: release-cli
 #   - GitHub Release with cross-compiled archives (linux/darwin/windows × amd64/arm64)
 #   - Homebrew tap updated at Konstera/homebrew-tap
 #   - Scoop bucket updated at Konstera/scoop-bucket
+#   - Claude Desktop extensions (konstera-windows-x64.mcpb,
+#     konstera-windows-arm64.mcpb, konstera-macos.mcpb), packed from the
+#     GoReleaser binaries, started on a real Windows/macOS runner, then
+#     attached to the same release (jobs mcpb-verify, mcpb-attach)
 #   - (future) winget manifest PR'd against Konstera/winget-pkgs
 #
 # First-release setup: NONE — GITHUB_TOKEN is auto-provided by Actions.
@@ -27,6 +31,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,3 +80,78 @@ jobs:
           # only reads them for the blocks that reference them.
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+
+      # Claude Desktop extension. Packed here, on Linux, so the macOS binary
+      # keeps its executable bit inside the bundle (see cli/mcpb/pack.sh).
+      # pack.sh unpacks each bundle again and checks version, binary and mode.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: cli/mcpb/package-lock.json
+
+      - name: Pack Claude Desktop extensions (.mcpb)
+        working-directory: cli/mcpb
+        run: |
+          npm ci --no-audit --no-fund
+          bash ./pack.sh "${{ steps.version.outputs.version }}" ../dist ../dist-mcpb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb
+          path: cli/dist-mcpb/
+          if-no-files-found: error
+
+  # Start each bundle on the OS it is for, the way Claude Desktop does
+  # (cli/mcpb/smoke.mjs): unpack, resolve the manifest command, initialize,
+  # tools/list. Only bundles that pass are attached to the release.
+  mcpb-verify:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            bundle: konstera-windows-x64.mcpb
+          - runner: windows-11-arm
+            bundle: konstera-windows-arm64.mcpb
+          - runner: macos-latest
+            bundle: konstera-macos.mcpb
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: cli/mcpb
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb
+          path: mcpb-out
+
+      - name: Smoke-test ${{ matrix.bundle }}
+        shell: bash
+        working-directory: cli/mcpb
+        run: |
+          npm ci --no-audit --no-fund
+          node smoke.mjs "../../mcpb-out/${{ matrix.bundle }}" "${{ needs.release.outputs.version }}"
+
+  mcpb-attach:
+    needs: [release, mcpb-verify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb
+          path: mcpb-out
+
+      # GoReleaser names the release after the stripped tag (v<X.Y.Z>).
+      - name: Attach to the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "v${{ needs.release.outputs.version }}" mcpb-out/* \
+            --repo "${{ github.repository }}" --clobber

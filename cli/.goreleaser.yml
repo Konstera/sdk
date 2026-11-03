@@ -51,8 +51,18 @@ builds:
       - -X github.com/Konstera/sdk/cli/internal/version.Commit={{.Commit}}
       - -X github.com/Konstera/sdk/cli/internal/version.Date={{.CommitDate}}
 
+# A universal (arm64 + x86_64) macOS binary for the Claude Desktop extension
+# (cli/mcpb/pack.sh), so one macOS bundle serves Apple silicon and Intel.
+# replace: false keeps the per-arch darwin builds, and the archives below
+# list only the `konstera` build, so release archives stay as they were.
+universal_binaries:
+  - id: konstera-universal
+    ids: [konstera]
+    replace: false
+
 archives:
   - id: default
+    ids: [konstera]
     name_template: >-
       konstera_{{ .Version }}_
       {{- title .Os }}_

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-v0.3.schema.json",
+  "manifest_version": "0.3",
+  "name": "konstera",
+  "display_name": "Konstera",
+  "version": "0.0.0",
+  "description": "Your Konstera tenant in Claude: connectors, models, agents and runs, plus agent publishing.",
+  "long_description": "Gives Claude the Konstera developer tools so it can build agents against your real tenant: what connectors and models you have, which agents are deployed, how their recent runs went, and checking or publishing an agent manifest.\n\nAsk Claude to \"sign in to Konstera\". Your browser opens the Konstera portal, where a tenant admin approves the request. Nothing to configure; the sign-in is kept and renewed on this computer.",
+  "author": {
+    "name": "Konstera",
+    "url": "https://konstera.ai"
+  },
+  "homepage": "https://konstera.ai",
+  "documentation": "https://konstera.ai/docs/cli#claude-desktop",
+  "support": "https://github.com/Konstera/sdk/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Konstera/sdk"
+  },
+  "license": "Apache-2.0",
+  "icon": "icon.png",
+  "keywords": ["konstera", "agents", "mcp", "developer"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/konstera",
+    "mcp_config": {
+      "command": "${__dirname}/server/konstera",
+      "args": ["mcp", "--client", "claude-desktop", "--api-url", "${user_config.api_url}"],
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/konstera.exe"
+        }
+      }
+    }
+  },
+  "tools": [
+    { "name": "konstera_sign_in", "description": "Sign in to Konstera; a tenant admin approves it in the portal." },
+    { "name": "konstera_status", "description": "Show the tenant this app is signed in to and when the token renews." },
+    { "name": "konstera_sign_out", "description": "Sign out and remove this app's tokens from this computer." },
+    { "name": "tenant_describe", "description": "Describe the signed-in tenant." },
+    { "name": "connectors_list", "description": "List the tenant's connectors and their capabilities." },
+    { "name": "llm_engines_list", "description": "List the LLM providers and models the tenant has configured." },
+    { "name": "agents_list", "description": "List the agents deployed to the tenant." },
+    { "name": "agent_invocations_list", "description": "List recent agent runs." },
+    { "name": "agent_invocation_describe", "description": "Show one agent run in full: steps, logs and errors." },
+    { "name": "agent_manifest_validate", "description": "Check an agent manifest without publishing it." },
+    { "name": "agent_publish", "description": "Publish an agent to the tenant." }
+  ],
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["win32", "darwin"]
+  },
+  "user_config": {
+    "api_url": {
+      "type": "string",
+      "title": "Konstera API URL",
+      "description": "Leave as it is unless your company runs its own Konstera; then use its API address.",
+      "default": "https://api.konstera.ai",
+      "required": false
+    }
+  }
+}

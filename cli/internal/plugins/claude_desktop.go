@@ -71,6 +71,9 @@ func activateClaudeDesktop(out io.Writer, apiBaseURL string) error {
 		return fmt.Errorf("Claude Desktop does not look installed (no %s). Install it, open it once, then run `konstera plugin activate %s`",
 			filepath.Dir(path), claudeDesktopSlug)
 	}
+	if err := checkClaudeDesktopClosed(func(msg string) { fmt.Fprintln(out, msg) }, path); err != nil {
+		return err
+	}
 	exe, err := executable()
 	if err != nil {
 		return fmt.Errorf("finding the konstera executable: %w", err)
@@ -89,7 +92,7 @@ func activateClaudeDesktop(out io.Writer, apiBaseURL string) error {
 	}
 	fmt.Fprintf(out, "✓ Added Konstera to Claude Desktop (%s).\n", path)
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Quit Claude Desktop completely (also from the system tray) and open it again.")
+	fmt.Fprintln(out, "Open Claude Desktop.")
 	fmt.Fprintln(out, "Then ask Claude to \"sign in to Konstera\"; approve the request in your browser.")
 	return nil
 }
@@ -102,6 +105,16 @@ func deactivateClaudeDesktop(out io.Writer) error {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		fmt.Fprintf(out, "%s is not active for Claude Desktop.\n", claudeDesktopSlug)
 		return nil
+	}
+	// Nothing to remove means nothing to write, so no need to quit Claude.
+	if cfg, err := readJSONObject(path); err == nil {
+		if servers, _ := cfg["mcpServers"].(map[string]any); servers[desktopServerKey] == nil {
+			fmt.Fprintf(out, "%s is not active for Claude Desktop.\n", claudeDesktopSlug)
+			return nil
+		}
+	}
+	if err := checkClaudeDesktopClosed(func(msg string) { fmt.Fprintln(out, msg) }, path); err != nil {
+		return err
 	}
 	removed := false
 	err = editDesktopConfig(path, func(servers map[string]any) {
@@ -117,8 +130,8 @@ func deactivateClaudeDesktop(out io.Writer) error {
 		fmt.Fprintf(out, "%s is not active for Claude Desktop.\n", claudeDesktopSlug)
 		return nil
 	}
-	fmt.Fprintln(out, "✓ Removed Konstera from Claude Desktop. Restart Claude Desktop to apply.")
-	fmt.Fprintln(out, "  To also end the pairing, ask Claude to sign out of Konstera before restarting.")
+	fmt.Fprintln(out, "✓ Removed Konstera from Claude Desktop.")
+	fmt.Fprintln(out, "  To also end the pairing, ask Claude to sign out of Konstera before removing it.")
 	return nil
 }
 
