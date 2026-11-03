@@ -1,0 +1,9 @@
+{
+  "name": "konstera-mcpb-build",
+  "private": true,
+  "description": "Builds the Konstera Claude Desktop extension (.mcpb). Not published.",
+  "type": "module",
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2"
+  }
+}
