@@ -20,6 +20,7 @@ func newManifestCmd() *cobra.Command {
 
 func newManifestValidateCmd() *cobra.Command {
 	var schemaPath string
+	var allowInternalRefs bool
 	cmd := &cobra.Command{
 		Use:   "validate <path>",
 		Short: "Validate an agent manifest against agent-manifest.v3.json",
@@ -27,6 +28,12 @@ func newManifestValidateCmd() *cobra.Command {
 
 Exits 0 on valid manifests, 1 on invalid. Prints a list of schema violations
 grouped by JSON pointer for easy fixing.
+
+Also checks the text people see when they install and run the agent
+(descriptions, capability reasons, config help, eval questions) for internal
+references such as design-record numbers, work-item labels, migration numbers
+or release history. Rewrite those in plain language and keep version history
+in a CHANGELOG; --allow-internal-refs reports them without failing.
 
 By default the schema is read from the vendored copy at
   sdk/schemas/agent-manifest.v3.json
@@ -51,6 +58,18 @@ Override with --schema if you're validating against a modified copy.`,
 			}
 
 			if result.Valid() {
+				copyReport, err := manifest.Copy(manifestPath)
+				if err != nil {
+					return fmt.Errorf("text lint: %w", err)
+				}
+				if copyErr := copyReport.Err(); copyErr != nil {
+					if !allowInternalRefs {
+						fmt.Fprintf(out, "INVALID — %s matches the schema, but:\n\n", manifestPath)
+						fmt.Fprint(out, copyErr.Error())
+						return fmt.Errorf("validation failed")
+					}
+					fmt.Fprintf(out, "WARNING — %s\n", copyErr.Error())
+				}
 				fmt.Fprintf(out, "OK — %s is a valid agent manifest.\n", manifestPath)
 				return nil
 			}
@@ -63,6 +82,8 @@ Override with --schema if you're validating against a modified copy.`,
 		},
 	}
 	cmd.Flags().StringVar(&schemaPath, "schema", "", "Override path to agent-manifest.v3.json (default: vendored copy)")
+	cmd.Flags().BoolVar(&allowInternalRefs, "allow-internal-refs", false,
+		"Report internal references in user-facing text as a warning instead of failing")
 	return cmd
 }
 
