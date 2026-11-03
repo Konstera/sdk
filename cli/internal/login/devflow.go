@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -46,6 +47,10 @@ type InitiateRequest struct {
 	MachineFingerprint string   `json:"machineFingerprint"`
 	RequestedScopes    []string `json:"requestedScopes"`
 	SuggestedTenantSlug string  `json:"suggestedTenantSlug,omitempty"`
+	// MachineName is this computer's hostname, shown to admins in Settings ›
+	// Developer pairings and on the approval page. A display label only; the
+	// fingerprint stays the pairing identity. Filled in by Initiate when empty.
+	MachineName string `json:"machineName,omitempty"`
 }
 
 // InitiateResponse is the device-flow authorization response (RFC 8628 §3.2).
@@ -86,6 +91,9 @@ var (
 // developer types in the portal, the verification URI the CLI should
 // open in a browser, and a device_code the CLI holds secret.
 func (c *Client) Initiate(ctx context.Context, req InitiateRequest) (*InitiateResponse, error) {
+	if req.MachineName == "" {
+		req.MachineName = MachineName()
+	}
 	body, _ := json.Marshal(req)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/dev-pair/device-code", bytes.NewReader(body))
 	if err != nil {
@@ -240,4 +248,13 @@ func (c *Client) postJSON(ctx context.Context, path string, payload any) (*http.
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return c.HTTP.Do(req)
+}
+
+// MachineName is this computer's hostname, trimmed, or "" when unknown.
+func MachineName() string {
+	host, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(host)
 }
