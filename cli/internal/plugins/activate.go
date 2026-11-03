@@ -62,6 +62,9 @@ func batchCmdLine(comspec, script string, args []string) string {
 // Activate adds the plugin at ~/.konstera/plugins/<slug> to its IDE.
 // Idempotent. apiBaseURL becomes the plugin's API URL.
 func Activate(out io.Writer, slug, apiBaseURL string) error {
+	if slug == claudeDesktopSlug {
+		return activateClaudeDesktop(out, apiBaseURL)
+	}
 	if slug != claudeCodeSlug {
 		return unsupportedSlug("activate", slug)
 	}
@@ -101,6 +104,9 @@ func Activate(out io.Writer, slug, apiBaseURL string) error {
 // Deactivate removes the plugin from its IDE, leaving the install at
 // ~/.konstera/plugins/<slug>. Idempotent.
 func Deactivate(out io.Writer, slug string) error {
+	if slug == claudeDesktopSlug {
+		return deactivateClaudeDesktop(out)
+	}
 	if slug != claudeCodeSlug {
 		return unsupportedSlug("deactivate", slug)
 	}
@@ -214,5 +220,5 @@ func unsupportedSlug(verb, slug string) error {
 // activate. Kept here so the command help can enumerate them without
 // pulling in cmd/.
 func SupportedActivateSlugs() []string {
-	return []string{claudeCodeSlug}
+	return []string{claudeCodeSlug, claudeDesktopSlug}
 }

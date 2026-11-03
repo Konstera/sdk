@@ -183,19 +183,11 @@ func KnownTargets() ([]MCPConfigTarget, error) {
 		t = append(t, MCPConfigTarget{Tool: tool, Path: path, MCPKey: mcpKey, Format: formatMCPServersObject})
 	}
 
-	// Claude Desktop — same mcpServers shape on all three OSes but the
-	// path differs (macOS: ~/Library/Application Support, Linux: ~/.config,
-	// Windows: %APPDATA%).
-	switch runtime.GOOS {
-	case "darwin":
-		add("Claude Desktop", filepath.Join(home, "Library/Application Support/Claude/claude_desktop_config.json"), "mcpServers")
-	case "linux":
-		add("Claude Desktop", filepath.Join(home, ".config/Claude/claude_desktop_config.json"), "mcpServers")
-	case "windows":
-		if appData != "" {
-			add("Claude Desktop", filepath.Join(appData, "Claude/claude_desktop_config.json"), "mcpServers")
-		}
-	}
+	// Claude Desktop is not a fan-out target: its config file only starts
+	// local commands, and a fixed token would expire within the hour. It
+	// runs `konstera mcp` instead, set up by
+	// `konstera plugin activate claude-desktop` (ADR-057 §Decision 6).
+	_ = appData
 
 	// Claude Code — the Anthropic CLI tool (distinct from Claude Desktop).
 	add("Claude Code", filepath.Join(home, ".config/claude-code/mcp.json"), "mcpServers")

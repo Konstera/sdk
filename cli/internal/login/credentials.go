@@ -76,6 +76,12 @@ func SaveCredentials(c *Credentials) error {
 	if err != nil {
 		return err
 	}
+	return SaveCredentialsAt(path, c)
+}
+
+// SaveCredentialsAt is SaveCredentials for another file in the Konstera
+// home, e.g. the pairing `konstera mcp` keeps for one MCP client.
+func SaveCredentialsAt(path string, c *Credentials) error {
 	body, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
@@ -118,6 +124,11 @@ func LoadCredentials() (*Credentials, error) {
 	if err != nil {
 		return nil, err
 	}
+	return LoadCredentialsAt(path)
+}
+
+// LoadCredentialsAt is LoadCredentials for another file in the Konstera home.
+func LoadCredentialsAt(path string) (*Credentials, error) {
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
