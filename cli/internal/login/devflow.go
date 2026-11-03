@@ -186,3 +186,58 @@ func bodyPreview(r io.Reader) string {
 	buf, _ := io.ReadAll(io.LimitReader(r, 512))
 	return strings.TrimSpace(string(buf))
 }
+
+// ErrRefreshRejected — the Platform refused the refresh token: it was
+// already used, or the pairing was revoked or has expired. The server
+// answers one opaque 401 for all of these.
+var ErrRefreshRejected = errors.New("refresh token rejected")
+
+// Refresh swaps a refresh token for a new access + refresh token pair
+// (POST /api/dev-pair/refresh). A refresh token works once.
+func (c *Client) Refresh(ctx context.Context, refreshToken string) (*PollResponse, error) {
+	resp, err := c.postJSON(ctx, "/api/dev-pair/refresh", map[string]string{"refreshToken": refreshToken})
+	if err != nil {
+		return nil, fmt.Errorf("refresh: %w", err)
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var out PollResponse
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			return nil, fmt.Errorf("decode refresh response: %w", err)
+		}
+		return &out, nil
+	case http.StatusUnauthorized:
+		return nil, ErrRefreshRejected
+	default:
+		return nil, fmt.Errorf("refresh: HTTP %d: %s", resp.StatusCode, bodyPreview(resp.Body))
+	}
+}
+
+// Revoke ends the pairing that owns refreshToken (POST /api/dev-pair/revoke).
+// A 401 means the pairing was already gone, which callers treat as done.
+func (c *Client) Revoke(ctx context.Context, refreshToken, reason string) error {
+	resp, err := c.postJSON(ctx, "/api/dev-pair/revoke", map[string]string{"refreshToken": refreshToken, "reason": reason})
+	if err != nil {
+		return fmt.Errorf("revoke: %w", err)
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusNoContent:
+		return nil
+	case http.StatusUnauthorized:
+		return ErrRefreshRejected
+	default:
+		return fmt.Errorf("revoke: HTTP %d: %s", resp.StatusCode, bodyPreview(resp.Body))
+	}
+}
+
+func (c *Client) postJSON(ctx context.Context, path string, payload any) (*http.Response, error) {
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return c.HTTP.Do(req)
+}

@@ -72,6 +72,10 @@ Claude Code must be installed first. The plugin loads in every new session,
 with no flags. Upgrades from 'konstera plugin install --force' reach the
 next session by themselves.
 
+For claude-desktop: adds this CLI as a local MCP server ('konstera mcp') to
+Claude Desktop's config file; nothing to install first. Restart Claude
+Desktop, then ask Claude to sign in to Konstera.
+
 Supported slugs: ` + strings.Join(plugins.SupportedActivateSlugs(), ", ") + `.
 
 Idempotent — safe to run again.`,

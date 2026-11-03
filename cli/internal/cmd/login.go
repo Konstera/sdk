@@ -49,8 +49,8 @@ A browser opens on the Konstera portal with a short code; a tenant admin
 reviews what you asked for and approves. The CLI then stores a scoped
 access token under ~/.konstera/credentials.json and writes an MCP server
 entry into every supported coding-agent config path on this machine
-(Cursor, Claude Desktop, Claude Code, OpenAI Codex, Windsurf, Cline,
-Continue). Your IDE lights up with Konstera MCP tools next time you
+(Cursor, Claude Code, OpenAI Codex, Windsurf, Cline, Continue).
+For Claude Desktop run 'konstera plugin activate claude-desktop' instead. Your IDE lights up with Konstera MCP tools next time you
 restart it.
 
 Default scope is 'devx.metadata.read' — your IDE can see tenant shape
@@ -197,7 +197,7 @@ func runLogin(ctx context.Context, stdout, stderr io.Writer, opts loginOpts) err
 	}
 	if len(res.Wrote) == 0 && len(res.Errors) == 0 {
 		fmt.Fprintln(out)
-		fmt.Fprintln(out, "No supported coding agents detected on this machine. Install Cursor, Claude Desktop, Claude Code,")
+		fmt.Fprintln(out, "No supported coding agents detected on this machine. Install Cursor, Claude Code,")
 		fmt.Fprintln(out, "OpenAI Codex, Windsurf, Cline, or Continue and re-run `konstera login` to configure them.")
 		return nil
 	}
