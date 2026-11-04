@@ -124,3 +124,67 @@ func TestActivateClaudeDesktopCreatesMissingFile(t *testing.T) {
 		t.Error("entry not written")
 	}
 }
+
+func installExtension(t *testing.T, configPath, folder, name string) {
+	t.Helper()
+	dir := filepath.Join(filepath.Dir(configPath), "Claude Extensions", folder)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(`{"manifest_version":"0.3","name":"`+name+`"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// With the .mcpb extension installed, activate must not add a second server:
+// Claude Desktop would start Konstera twice, and on Windows the extra process
+// locks ~/.konstera/bin/konstera.exe so the installer can't update it.
+func TestActivateClaudeDesktopWithExtensionRemovesOlderEntry(t *testing.T) {
+	path := useDesktopConfig(t, `{"mcpServers":{"konstera":{"command":"C:/old/konstera.exe","args":["mcp"]},"other":{"command":"x"}},"theme":"dark"}`)
+	installExtension(t, path, "local.mcpb.konstera.konstera", "konstera")
+
+	var out bytes.Buffer
+	if err := activateClaudeDesktop(&out, "https://api.konstera.ai"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := readConfig(t, path)
+	servers := cfg["mcpServers"].(map[string]any)
+	if _, ok := servers["konstera"]; ok {
+		t.Fatalf("konstera entry kept next to the extension: %v", servers)
+	}
+	if _, ok := servers["other"]; !ok || cfg["theme"] != "dark" {
+		t.Fatalf("other settings lost: %v", cfg)
+	}
+	if !strings.Contains(out.String(), "already installed") || !strings.Contains(out.String(), "Removed the older Konstera entry") {
+		t.Fatalf("unexpected output:\n%s", out.String())
+	}
+}
+
+func TestActivateClaudeDesktopWithExtensionAddsNothing(t *testing.T) {
+	path := useDesktopConfig(t, `{"mcpServers":{}}`)
+	installExtension(t, path, "some-other-folder-name", "konstera")
+
+	var out bytes.Buffer
+	if err := activateClaudeDesktop(&out, "https://api.konstera.ai"); err != nil {
+		t.Fatal(err)
+	}
+	if servers := readConfig(t, path)["mcpServers"].(map[string]any); len(servers) != 0 {
+		t.Fatalf("expected no servers, got %v", servers)
+	}
+	if strings.Contains(out.String(), "Removed") {
+		t.Fatalf("claimed a removal with nothing to remove:\n%s", out.String())
+	}
+}
+
+// Another extension (different manifest name) doesn't count.
+func TestActivateClaudeDesktopIgnoresOtherExtensions(t *testing.T) {
+	path := useDesktopConfig(t, `{"mcpServers":{}}`)
+	installExtension(t, path, "local.mcpb.someone.konstera-like", "not-konstera")
+
+	if err := activateClaudeDesktop(&bytes.Buffer{}, "https://api.konstera.ai"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := readConfig(t, path)["mcpServers"].(map[string]any)["konstera"]; !ok {
+		t.Fatal("expected the konstera entry when no Konstera extension is installed")
+	}
+}
