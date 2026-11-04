@@ -3534,6 +3534,114 @@
       }
     },
     {
+      "key": "tickets.list_unresolved",
+      "display_name": "List unresolved tickets",
+      "category": "tickets",
+      "description": "Every ticket not yet resolved or closed in the source system, oldest created first, for a one-off re-fetch of tickets the regular poll skipped. Unassigned only unless includeAssigned. Each item carries awaitingReply (no agent response yet, or the customer wrote after it) and total: how many tickets matched before the limit was applied. Does not move any poll position. Implementers: Freshdesk.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1
+          },
+          "sinceIso": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only tickets created at or after this time; default: all unresolved tickets"
+          },
+          "includeAssigned": {
+            "type": "boolean",
+            "default": false,
+            "description": "Also return tickets a person already owns"
+          },
+          "waitingOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Only tickets awaiting our reply (awaitingReply true)"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "ticketId",
+            "threadId",
+            "receivedAt",
+            "total"
+          ],
+          "properties": {
+            "body": {
+              "type": "string"
+            },
+            "status": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "subject": {
+              "type": "string"
+            },
+            "assigned": {
+              "type": "boolean",
+              "description": "A person already owns the ticket"
+            },
+            "awaitingReply": {
+              "type": "boolean",
+              "description": "No agent has responded yet, or the customer wrote after the last agent response"
+            },
+            "agentRespondedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "requesterRespondedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "ticketId": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "receivedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "supportEmail": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "total": {
+              "type": "integer",
+              "description": "Tickets that matched before the limit was applied (the same on every item)"
+            }
+          }
+        }
+      }
+    },
+    {
       "key": "tickets.reply",
       "display_name": "Reply on a ticket",
       "category": "tickets",
