@@ -24,6 +24,8 @@ const (
 	// runs wrote. Claude Desktop cannot use it and its token expires within
 	// the hour, so activation removes it.
 	legacyFanoutKey = "konstera-devx"
+	// mcpbExtensionName is "name" in cli/mcpb/manifest.json.
+	mcpbExtensionName = "konstera"
 )
 
 // executable is the path Claude Desktop runs. Tests replace it.
@@ -73,6 +75,33 @@ func activateClaudeDesktop(out io.Writer, apiBaseURL string) error {
 	}
 	if err := checkClaudeDesktopClosed(func(msg string) { fmt.Fprintln(out, msg) }, path); err != nil {
 		return err
+	}
+	// The Konstera extension (.mcpb) already runs its own copy of this CLI.
+	// A config entry next to it makes Claude Desktop start Konstera twice
+	// (every tool listed twice), and on Windows that second process locks
+	// the installed konstera.exe so the installer can't update it.
+	if ext := installedDesktopExtension(path); ext != "" {
+		removed := false
+		err := editDesktopConfig(path, func(servers map[string]any) {
+			if _, ok := servers[desktopServerKey]; ok {
+				delete(servers, desktopServerKey)
+				removed = true
+			}
+			if isLegacyFanoutEntry(servers[legacyFanoutKey]) {
+				delete(servers, legacyFanoutKey)
+				removed = true
+			}
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "The Konstera extension is already installed in Claude Desktop (%s), so nothing was added.\n", ext)
+		if removed {
+			fmt.Fprintln(out, "✓ Removed the older Konstera entry from Claude Desktop's config, so Konstera no longer starts twice.")
+		}
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Open Claude Desktop and ask Claude to \"sign in to Konstera\" if you haven't yet.")
+		return nil
 	}
 	exe, err := executable()
 	if err != nil {
@@ -133,6 +162,34 @@ func deactivateClaudeDesktop(out io.Writer) error {
 	fmt.Fprintln(out, "✓ Removed Konstera from Claude Desktop.")
 	fmt.Fprintln(out, "  To also end the pairing, ask Claude to sign out of Konstera before removing it.")
 	return nil
+}
+
+// installedDesktopExtension is the folder of the Konstera extension under
+// Claude Desktop's "Claude Extensions" directory (next to its config file),
+// or "" when none is installed. It matches on the extension manifest's name,
+// not the folder name, which Claude Desktop derives and may change.
+func installedDesktopExtension(configPath string) string {
+	dir := filepath.Join(filepath.Dir(configPath), "Claude Extensions")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name(), "manifest.json"))
+		if err != nil {
+			continue
+		}
+		var m struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(raw, &m) == nil && m.Name == mcpbExtensionName {
+			return filepath.Join(dir, e.Name())
+		}
+	}
+	return ""
 }
 
 func isLegacyFanoutEntry(v any) bool {
