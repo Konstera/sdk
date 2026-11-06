@@ -48,7 +48,7 @@ func TestValidate_ValidMinimalManifest(t *testing.T) {
   "id": "io.konstera.hello-cli-test",
   "name": "Hello CLI Test",
   "version": "0.1.0",
-  "runtime": { "kind": "container", "image": "ghcr.io/konstera/hello:0.1.0" }
+  "runtime": { "kind": "container", "image": "ghcr.io/konstera/hello:0.1.0", "port": 8080, "healthPath": "/health", "timeoutSeconds": 30 }
 }`
 	path := writeTmp(t, "manifest.json", body)
 
