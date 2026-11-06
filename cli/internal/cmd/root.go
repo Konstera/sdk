@@ -30,6 +30,7 @@ Repo: https://github.com/Konstera/sdk/tree/main/cli`,
 		newLoginCmd(),
 		newPluginCmd(),
 		newMCPCmd(),
+		newConnectionCmd(),
 	)
 	return root
 }
