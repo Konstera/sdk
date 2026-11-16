@@ -1296,6 +1296,73 @@
       }
     },
     {
+      "key": "db.query.named",
+      "display_name": "Run a named database query",
+      "category": "db",
+      "description": "Runs one of the connection's admin-defined named queries (a SELECT over views, or EXEC of an allow-listed procedure) against SQL Server with typed parameters. Off unless the connection enables business data access. Agents never send SQL. Bounded: max_rows (default 1000, at most 5000), 5 MB, command timeout; read-only intent, always rolled back.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [
+        "read_only"
+      ],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Name of a query in the connection's named_queries, e.g. psp_settlements"
+          },
+          "params": {
+            "type": "object",
+            "description": "Parameter values by name. Types are set by the query: int and decimal as JSON numbers (decimal also as a string), date as yyyy-MM-dd, datetime as yyyy-MM-ddTHH:mm[:ss], string, bool. Unknown, missing or mistyped parameters are refused."
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "columns",
+          "rows",
+          "rowCount",
+          "truncated"
+        ],
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when rows were cut at max_rows or 5 MB, or a cell was cut at 8000 characters"
+          }
+        }
+      }
+    },
+    {
       "key": "email.send",
       "display_name": "Send an email",
       "category": "email",
@@ -1369,22 +1436,35 @@
       "key": "files.get",
       "display_name": "Get file",
       "category": "files",
-      "description": "Fetch one file by ID: metadata, link, and its text when the file is text-like (txt, md, html, csv, json, xml). Other formats return metadata and a link only.",
+      "description": "Fetch one file: metadata, link, and its text when the file is text-like (txt, md, html, csv, json, xml). OneDrive / SharePoint take {id} and return metadata and a link for other formats. SFTP takes {path} (relative to the connection's root folder) and also returns the raw bytes as contentBase64, decrypting OpenPGP files when the connection is set up for it (decrypted, signatureVerified).",
       "effect": "read",
       "fanout": false,
       "traits": [],
       "cache_ttl_seconds": null,
       "arg_schema": {
         "type": "object",
-        "required": [
-          "id"
-        ],
         "properties": {
           "id": {
             "type": "string",
             "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "id"
+            ]
+          },
+          {
+            "required": [
+              "path"
+            ]
+          }
+        ]
       },
       "response_schema": {
         "type": "object",
@@ -1439,6 +1519,135 @@
           },
           "textAvailable": {
             "type": "boolean"
+          },
+          "modified": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "contentBase64": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "contentText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decrypted": {
+            "type": "boolean"
+          },
+          "signatureVerified": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "files.list",
+      "display_name": "List files",
+      "category": "files",
+      "description": "List the files and folders in one folder of a connected file store such as an SFTP server, optionally filtered by a name pattern (* and ?) and a modified-since time. Paths are relative to the connection's root folder; use files.get to read a file. Implementers: SFTP.",
+      "effect": "read",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "modifiedSince": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100
+          }
+        }
+      },
+      "response_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "path",
+            "name",
+            "isDirectory"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer"
+            },
+            "modified": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "isDirectory": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "files.move",
+      "display_name": "Move file to processed",
+      "category": "files",
+      "description": "Archive a file after it has been handled: move it from the connection's root folder into its processed folder. Never overwrites, never moves anywhere else; off unless the connection allows it. Changes the external system, so it is blocked in eval mode. Implementers: SFTP.",
+      "effect": "write",
+      "fanout": false,
+      "traits": [],
+      "cache_ttl_seconds": null,
+      "arg_schema": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "toPath": {
+            "type": "string"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
           }
         }
       }
